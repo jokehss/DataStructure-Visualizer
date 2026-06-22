@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据结构期末突击可视化</title>
+    
+    <!-- 引入 Tailwind CSS 渲染高级样式 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 引入 React 和 ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- 引入 Babel 用于在浏览器中实时编译 JSX -->
+    <script src="https://unpkg.com/@babel/standalone@7.23.6/babel.min.js"></script>
+
+    <style>
+        /* 自定义滚动条样式 */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 20px;
+        }
+        body { margin: 0; padding: 0; overflow: hidden; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel" data-type="module">
+        const { useState, useEffect, useRef } = React;
+
+        // ==========================================
+        // 0. 图标组件 (替代外部依赖，确保单文件可用)
+        // ==========================================
+        const Icon = ({ path, size = 24, className = "", fill = "none" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                {path}
+            </svg>
+        );
+        const Play = (p) => <Icon {...p} fill={p.fill || "none"} path={<polygon points="5 3 19 12 5 21 5 3"/>} />;
+        const Pause = (p) => <Icon {...p} fill={p.fill || "none"} path={<><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></>} />;
+        const StepForward = (p) => <Icon {...p} path={<><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></>} />;
+        const StepBack = (p) => <Icon {...p} path={<><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></>} />;
+        const SkipBack = (p) => <Icon {...p} path={<><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></>} />;
+        const SkipForward = (p) => <Icon {...p} path={<><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></>} />;
+        const ListIcon = (p) => <Icon {...p} path={<><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></>} />;
+        const Layers = (p) => <Icon {...p} path={<><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></>} />;
+        const Share2 = (p) => <Icon {...p} path={<><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></>} />;
+        const Search = (p) => <Icon {...p} path={<><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>} />;
+        const ArrowDownUp = (p) => <Icon {...p} path={<><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></>} />;
+        const RefreshCw = (p) => <Icon {...p} path={<><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></>} />;
+
+        // ==========================================
+        // 1. 底层状态机引擎与生成器 (Core Generator)
+        // ==========================================
+        const deepClone = (obj) => JSON.parse(JSON.stringify(obj));
+
+        function* generateHeadInsertStates(values) {
+            let state = {
+                stepId: 0,
+                codeLine: 1,
+                description: "初始化：准备开始头插法创建单链表。",
+                variables: { L: '0x1000 (头结点)', s: 'NULL', x: '?' },
+                nodes: [
+                    { id: 'L', val: 'Head', x: 50, y: 250, type: 'head' }
+                ],
+                pointers: [
+                    { id: 'p_L_null', from: 'L', to: 'NULL', type: 'solid' }
+                ]
+            };
+            yield deepClone(state);
+
+            let currentListIds = []; 
+            let stepCounter = 1;
+
+            for (let i = 0; i < values.length; i++) {
+                const val = values[i];
+                const sId = 's_' + i;
+
+                state.codeLine = 5;
+                state.stepId = stepCounter++;
+                state.description = `读取输入数据 x = ${val}`;
+                state.variables.x = val;
+                yield deepClone(state);
+
+                state.codeLine = 7;
+                state.stepId = stepCounter++;
+                state.description = `为新节点 s 分配内存空间。`;
+                state.variables.s = `0x200${i}`;
+                state.nodes.push({ id: sId, val: '?', x: 200, y: 100, type: 'normal' });
+                yield deepClone(state);
+
+                state.codeLine = 8;
+                state.stepId = stepCounter++;
+                state.description = `将数据 ${val} 写入新节点的数据域。`;
+                const sNode = state.nodes.find(n => n.id === sId);
+                if(sNode) sNode.val = val;
+                yield deepClone(state);
+
+                state.codeLine = 9;
+                state.stepId = stepCounter++;
+                state.description = `新节点 s 的 next 指针指向原首元节点 (或 NULL)。`;
+                let nextNodeId = currentListIds.length > 0 ? currentListIds[0] : 'NULL';
+                state.pointers.push({ id: `p_${sId}_next`, from: sId, to: nextNodeId, type: 'dashed' });
+                yield deepClone(state);
+
+                state.codeLine = 10;
+                state.stepId = stepCounter++;
+                state.description = `头结点 L 的 next 指针断开原连接，指向新节点 s。`;
+                state.pointers = state.pointers.filter(p => p.from !== 'L');
+                state.pointers.push({ id: `p_L_next`, from: 'L', to: sId, type: 'solid' });
+                
+                const sPointer = state.pointers.find(p => p.id === `p_${sId}_next`);
+                if(sPointer) sPointer.type = 'solid';
+
+                state.nodes.forEach(n => {
+                    if (currentListIds.includes(n.id) || n.id === 'NULL_NODE') {
+                        n.x += 150;
+                    }
+                });
+                const sNodeToMove = state.nodes.find(n => n.id === sId);
+                if(sNodeToMove) {
+                    sNodeToMove.x = 200;
+                    sNodeToMove.y = 250;
+                }
+                
+                currentListIds.unshift(sId);
+                yield deepClone(state);
+            }
+
+            state.codeLine = 13;
+            state.stepId = stepCounter++;
+            state.description = "输入结束 (x=999)，头插法建表完成，返回头指针 L。";
+            state.variables.x = 999;
+            state.variables.s = 'NULL';
+            yield deepClone(state);
+        }
+
+        const codeString = `// 单链表 - 头插法创建
+LinkList List_HeadInsert(LinkList &L) {
+    LNode *s; int x;
+    L = (LinkList)malloc(sizeof(LNode)); // 初始化头节点
+    L->next = NULL;
+    scanf("%d", &x);
+    while(x != 999) {
+        s = (LNode*)malloc(sizeof(LNode)); 
+        s->data = x;
+        s->next = L->next;
+        L->next = s;
+        scanf("%d", &x);
+    }
+    return L;
+}`;
+
+        // ==========================================
+        // 2. 主应用组件
+        // ==========================================
+        function App() {
+            const [states, setStates] = useState([]);
+            const [currentIndex, setCurrentIndex] = useState(0);
+            const [isPlaying, setIsPlaying] = useState(false);
+            const [playSpeed, setPlaySpeed] = useState(1000); 
+            const [inputArray, setInputArray] = useState('10, 20, 30');
+            
+            const menus = [
+                { title: '线性表', icon: <ListIcon size={18}/>, items: ['顺序表-数组', '单链表-头插法', '单链表-尾插法'] },
+                { title: '栈和队列', icon: <Layers size={18}/>, items: ['顺序栈', '环形队列'] },
+                { title: '树与二叉树', icon: <Share2 size={18}/>, items: ['二叉树转换', '遍历与哈夫曼'] },
+                { title: '图', icon: <Share2 size={18}/>, items: ['邻接矩阵与邻接表', '图遍历与拓扑'] },
+                { title: '查找', icon: <Search size={18}/>, items: ['折半查找', '哈希表(线性探测)'] },
+                { title: '排序', icon: <ArrowDownUp size={18}/>, items: ['直接插入排序', '快速排序', '堆排序'] },
+            ];
+
+            const activeModule = '单链表-头插法';
+
+            useEffect(() => {
+                let timer;
+                if (isPlaying && currentIndex < states.length - 1) {
+                    timer = setTimeout(() => {
+                        setCurrentIndex(prev => prev + 1);
+                    }, playSpeed);
+                } else if (currentIndex >= states.length - 1) {
+                    setIsPlaying(false);
+                }
+                return () => clearTimeout(timer);
+            }, [isPlaying, currentIndex, states, playSpeed]);
+
+            const generateStates = () => {
+                const values = inputArray.split(',').map(v => parseInt(v.trim())).filter(v => !isNaN(v));
+                if(values.length === 0) return;
+                
+                const generator = generateHeadInsertStates(values);
+                const newStates = [];
+                for (let state of generator) {
+                    newStates.push(state);
+                }
+                setStates(newStates);
+                setCurrentIndex(0);
+                setIsPlaying(false);
+            };
+
+            useEffect(() => {
+                generateStates();
+            }, []);
+
+            const currentState = states[currentIndex] || null;
+
+            const getLinePos = (fromId, toId, nodesList) => {
+                const fromNode = nodesList.find(n => n.id === fromId);
+                let toNode = nodesList.find(n => n.id === toId);
+                
+                if (!fromNode) return null;
+
+                const startX = fromNode.x + 64; 
+                const startY = fromNode.y + 24; 
+
+                if (toId === 'NULL') {
+                    return { x1: startX, y1: startY, x2: startX + 50, y2: startY };
+                }
+
+                if (!toNode) return null;
+                
+                let endX = toNode.x;
+                let endY = toNode.y + 24;
+
+                return { x1: startX, y1: startY, x2: endX, y2: endY };
+            };
+
+            return (
+                <div className="flex h-screen w-full bg-slate-50 font-sans overflow-hidden text-slate-800">
+                    {/* 左侧：考点导航栏 */}
+                    <div className="w-64 bg-white border-r border-slate-200 flex flex-col shadow-sm z-10">
+                        <div className="p-4 border-b border-slate-100 flex items-center gap-2">
+                            <div className="w-8 h-8 rounded bg-blue-600 flex items-center justify-center text-white font-bold text-xl">D</div>
+                            <span className="font-bold text-lg tracking-wide text-slate-800">DS Visualizer</span>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar">
+                            {menus.map((menu, idx) => (
+                                <div key={idx} className="space-y-1">
+                                    <div className="flex items-center gap-2 text-slate-400 font-semibold text-xs uppercase px-2 mb-2">
+                                        {menu.icon} <span>{menu.title}</span>
+                                    </div>
+                                    {menu.items.map(item => (
+                                        <div 
+                                            key={item} 
+                                            className={`px-3 py-2 rounded-md text-sm font-medium cursor-pointer transition-colors ${
+                                                item === activeModule 
+                                                    ? 'bg-blue-50 text-blue-700 font-semibold' 
+                                                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                                            }`}
+                                        >
+                                            {item === activeModule && <div className="absolute left-0 w-1 h-6 bg-blue-600 rounded-r-md -ml-3 mt-0.5"></div>}
+                                            {item}
+                                        </div>
+                                    ))}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* 中间与右侧主工作区 */}
+                    <div className="flex-1 flex flex-col min-w-0">
+                        {/* 顶部标题栏 */}
+                        <div className="h-14 bg-white border-b border-slate-200 flex items-center px-6 shadow-sm justify-between z-10">
+                            <h1 className="text-xl font-bold text-slate-800">{activeModule} <span className="text-xs font-normal ml-2 px-2 py-1 bg-amber-100 text-amber-700 rounded-full border border-amber-200">必考核心</span></h1>
+                            <div className="flex items-center gap-4 text-sm text-slate-500">
+                                <span>Powered by Frontend State Machine Engine</span>
+                            </div>
+                        </div>
+
+                        {/* 核心画布与代码分栏 */}
+                        <div className="flex-1 flex overflow-hidden">
+                            {/* 中间：高级渲染画布 (Canvas) */}
+                            <div className="flex-1 relative bg-slate-900 overflow-hidden flex flex-col">
+                                <div className="absolute inset-0 opacity-20 pointer-events-none" 
+                                     style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(255,255,255,0.2) 1px, transparent 0)', backgroundSize: '24px 24px' }}>
+                                </div>
+
+                                {currentState && (
+                                    <div className="absolute top-6 right-6 bg-slate-800/80 backdrop-blur-md border border-slate-700 rounded-lg p-4 shadow-xl pointer-events-none z-20">
+                                        <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Memory Scope</h3>
+                                        <div className="space-y-1.5 text-sm font-mono text-slate-200">
+                                            <div className="flex justify-between gap-6"><span>LinkList L</span> <span className="text-blue-400">{currentState.variables.L}</span></div>
+                                            <div className="flex justify-between gap-6"><span>LNode *s</span> <span className="text-purple-400">{currentState.variables.s}</span></div>
+                                            <div className="flex justify-between gap-6"><span>int x</span> <span className="text-green-400">{currentState.variables.x}</span></div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="relative flex-1">
+                                    <svg className="absolute inset-0 w-full h-full z-0 pointer-events-none">
+                                        <defs>
+                                            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                                <polygon points="0 0, 10 3.5, 0 7" fill="#60a5fa" />
+                                            </marker>
+                                            <marker id="arrowhead-dashed" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                                <polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8" />
+                                            </marker>
+                                        </defs>
+                                        
+                                        {currentState && currentState.pointers.map((ptr, idx) => {
+                                            const pos = getLinePos(ptr.from, ptr.to, currentState.nodes);
+                                            if(!pos) return null;
+                                            const isDashed = ptr.type === 'dashed';
+                                            const strokeColor = isDashed ? '#94a3b8' : '#60a5fa';
+                                            
+                                            return (
+                                                <line 
+                                                    key={ptr.id + idx}
+                                                    x1={pos.x1} y1={pos.y1} 
+                                                    x2={pos.x2} y2={pos.y2}
+                                                    stroke={strokeColor}
+                                                    strokeWidth="2.5"
+                                                    strokeDasharray={isDashed ? "5,5" : "0"}
+                                                    markerEnd={`url(#arrowhead${isDashed ? '-dashed' : ''})`}
+                                                    className="transition-all duration-500 ease-in-out"
+                                                />
+                                            );
+                                        })}
+                                    </svg>
+
+                                    {currentState && currentState.nodes.map(node => (
+                                        <div 
+                                            key={node.id}
+                                            className="absolute transition-all duration-500 ease-in-out z-10 flex flex-col items-center shadow-2xl"
+                                            style={{ left: node.x, top: node.y }}
+                                        >
+                                            <div className={`
+                                                w-16 h-12 flex rounded-sm border-2 overflow-hidden bg-slate-800
+                                                ${node.type === 'head' ? 'border-amber-500' : 'border-blue-500'}
+                                            `}>
+                                                <div className="flex-1 flex items-center justify-center font-mono font-bold text-white bg-slate-800/50">
+                                                    {node.val}
+                                                </div>
+                                                <div className="w-5 border-l-2 border-slate-600 flex items-center justify-center bg-slate-700">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div>
+                                                </div>
+                                            </div>
+                                            <div className="mt-2 text-xs font-mono font-semibold text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded backdrop-blur">
+                                                {node.id === 'L' ? 'L (Head)' : node.id}
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    {currentState && currentState.pointers.filter(p => p.to === 'NULL').map((ptr, idx) => {
+                                        const pos = getLinePos(ptr.from, 'NULL', currentState.nodes);
+                                        if(!pos) return null;
+                                        return (
+                                            <div 
+                                                key={`null_${idx}`} 
+                                                className="absolute text-slate-500 font-mono font-bold transition-all duration-500 ease-in-out z-10"
+                                                style={{ left: pos.x2 + 5, top: pos.y2 - 10 }}
+                                            >
+                                                NULL
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+
+                                <div className="absolute bottom-6 left-6 right-6 bg-slate-800/95 backdrop-blur shadow-xl border border-slate-600 rounded-xl p-4 flex gap-4 items-start z-20">
+                                    <div className="w-8 h-8 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/50">
+                                        <RefreshCw size={16} />
+                                    </div>
+                                    <div>
+                                        <h4 className="text-sm font-bold text-white mb-1">执行状态解析</h4>
+                                        <p className="text-slate-300 text-sm leading-relaxed">
+                                            {currentState ? currentState.description : '加载中...'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* 右侧：代码追踪器 (Code Panel) */}
+                            <div className="w-96 bg-[#1e1e1e] border-l border-slate-700 flex flex-col shadow-[-4px_0_15px_rgba(0,0,0,0.1)] z-10">
+                                <div className="flex items-center gap-2 px-4 py-3 bg-[#252526] border-b border-[#333]">
+                                    <div className="flex gap-1.5">
+                                        <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                                        <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                                    </div>
+                                    <span className="ml-2 text-xs font-mono text-slate-400">c/c++</span>
+                                </div>
+                                <div className="flex-1 overflow-y-auto font-mono text-sm py-2">
+                                    {codeString.split('\n').map((line, idx) => {
+                                        const lineNum = idx + 1;
+                                        const isActive = currentState && currentState.codeLine === lineNum;
+                                        return (
+                                            <div 
+                                                key={lineNum} 
+                                                className={`flex px-2 py-0.5 transition-colors duration-200
+                                                    ${isActive ? 'bg-[#062f4a] border-l-4 border-blue-500 text-white' : 'border-l-4 border-transparent text-slate-400'}
+                                                `}
+                                            >
+                                                <span className="w-8 text-right pr-4 opacity-50 select-none">{lineNum}</span>
+                                                <span className="whitespace-pre">{line}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 底部：时间轴与控制器 */}
+                        <div className="h-20 bg-white border-t border-slate-200 px-6 flex items-center justify-between shadow-[0_-4px_10px_rgba(0,0,0,0.02)] z-20">
+                            
+                            <div className="flex items-center gap-3">
+                                <span className="text-sm font-bold text-slate-600">输入数组:</span>
+                                <input 
+                                    type="text" 
+                                    value={inputArray}
+                                    onChange={(e) => setInputArray(e.target.value)}
+                                    className="border border-slate-300 rounded px-3 py-1.5 text-sm w-48 focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
+                                />
+                                <button 
+                                    onClick={generateStates}
+                                    className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-sm rounded border border-slate-300 transition-colors"
+                                >
+                                    重置构建
+                                </button>
+                            </div>
+
+                            <div className="flex items-center gap-6 flex-1 max-w-xl mx-8">
+                                <div className="flex items-center gap-2">
+                                    <button onClick={() => { setIsPlaying(false); setCurrentIndex(0); }} className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"><SkipBack size={20} /></button>
+                                    <button onClick={() => { setIsPlaying(false); setCurrentIndex(Math.max(0, currentIndex - 1)); }} className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"><StepBack size={20} /></button>
+                                    <button 
+                                        onClick={() => setIsPlaying(!isPlaying)}
+                                        className="p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-md transition-transform active:scale-95 flex items-center justify-center"
+                                    >
+                                        {isPlaying ? <Pause size={24} fill="currentColor"/> : <Play size={24} fill="currentColor" className="ml-1" />}
+                                    </button>
+                                    <button onClick={() => { setIsPlaying(false); setCurrentIndex(Math.min(states.length - 1, currentIndex + 1)); }} className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"><StepForward size={20} /></button>
+                                    <button onClick={() => { setIsPlaying(false); setCurrentIndex(states.length - 1); }} className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"><SkipForward size={20} /></button>
+                                </div>
+
+                                <div className="flex-1 flex items-center gap-3">
+                                    <span className="text-xs font-mono font-medium text-slate-500 w-12 text-right">
+                                        {currentIndex + 1} / {states.length}
+                                    </span>
+                                    <input 
+                                        type="range" 
+                                        min="0" max={states.length > 0 ? states.length - 1 : 0} 
+                                        value={currentIndex}
+                                        onChange={(e) => { setIsPlaying(false); setCurrentIndex(Number(e.target.value)); }}
+                                        className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-slate-500">速度:</span>
+                                <select 
+                                    value={playSpeed}
+                                    onChange={(e) => setPlaySpeed(Number(e.target.value))}
+                                    className="border border-slate-300 rounded px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                                >
+                                    <option value={2000}>0.5x 慢速</option>
+                                    <option value={1000}>1.0x 正常</option>
+                                    <option value={500}>2.0x 快速</option>
+                                </select>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
