@@ -8,9 +8,9 @@ interface GraphMatrixPanelProps {
 
 export function GraphMatrixPanel({ vertices, matrix, activeCells = [] }: GraphMatrixPanelProps) {
   return (
-    <div className="h-full min-h-0 bg-white border-l border-slate-200 flex flex-col">
-      <div className="px-4 py-3 border-b border-slate-200 bg-slate-50">
-        <h2 className="text-sm font-bold text-slate-700">邻接矩阵</h2>
+    <div className="h-full min-h-0 bg-white border-l border-pink-100 flex flex-col">
+      <div className="px-4 py-3 border-b border-pink-100 bg-pink-50/50">
+        <h2 className="text-sm font-bold text-pink-600">邻接矩阵</h2>
       </div>
 
       <div className="flex-1 overflow-auto p-4 custom-scrollbar">
@@ -22,9 +22,9 @@ export function GraphMatrixPanel({ vertices, matrix, activeCells = [] }: GraphMa
           <table className="border-collapse text-sm font-mono">
             <thead>
               <tr>
-                <th className="w-9 h-9 border border-slate-200 bg-slate-100 text-slate-400" />
+                <th className="w-9 h-9 border border-pink-100 bg-pink-50 text-slate-400" />
                 {vertices.map((vertex) => (
-                  <th key={vertex.id} className="w-9 h-9 border border-slate-200 bg-slate-100 text-slate-700">
+                  <th key={vertex.id} className="w-9 h-9 border border-pink-100 bg-pink-50 text-slate-700">
                     {vertex.label}
                   </th>
                 ))}
@@ -33,7 +33,7 @@ export function GraphMatrixPanel({ vertices, matrix, activeCells = [] }: GraphMa
             <tbody>
               {vertices.map((rowVertex, i) => (
                 <tr key={rowVertex.id}>
-                  <th className="w-9 h-9 border border-slate-200 bg-slate-100 text-slate-700">
+                  <th className="w-9 h-9 border border-pink-100 bg-pink-50 text-slate-700">
                     {rowVertex.label}
                   </th>
                   {vertices.map((colVertex, j) => {
@@ -44,10 +44,10 @@ export function GraphMatrixPanel({ vertices, matrix, activeCells = [] }: GraphMa
                         key={`${rowVertex.id}_${colVertex.id}`}
                         className={`w-9 h-9 border text-center transition-colors ${
                           isActive
-                            ? 'border-amber-400 bg-amber-200 text-amber-950 font-bold'
+                            ? 'border-rose-300 bg-rose-100 text-rose-700 font-bold'
                             : matrix[i]?.[j] === 1
-                              ? 'border-slate-200 bg-blue-50 text-blue-700 font-semibold'
-                              : 'border-slate-200 bg-white text-slate-400'
+                              ? 'border-pink-200 bg-pink-50 text-pink-700 font-semibold'
+                              : 'border-pink-100 bg-white text-slate-400'
                         }`}
                       >
                         {matrix[i]?.[j] ?? 0}

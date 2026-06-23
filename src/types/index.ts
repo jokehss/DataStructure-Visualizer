@@ -117,7 +117,8 @@ export type OperationType =
   | 'binaryTreeBuild' | 'binaryTreePreorder' | 'binaryTreeInorder' | 'binaryTreePostorder' | 'binaryTreeProperties'
   | 'graphMatrix' | 'graphAddEdge' | 'graphBfs' | 'graphDfs' | 'graphPlaceholder' | 'graphAdjList'
   | 'binarySearch'
-  | 'insertionSort' | 'quickSort' | 'heapSort' | 'createSortArray' | 'shuffleSortArray';
+  | 'insertionSort' | 'quickSort' | 'heapSort' | 'createSortArray' | 'shuffleSortArray'
+  | 'document';
 
 export type PlaySpeed = 500 | 1000 | 2000;
 

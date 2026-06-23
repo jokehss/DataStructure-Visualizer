@@ -3,7 +3,7 @@
 // 左侧考点导航栏 —— 纯展示组件
 // ============================================================
 
-import { List, Layers, Share2, Search, ArrowDownUp } from 'lucide-react';
+import { List, Layers, Share2, Search, ArrowDownUp, Heart } from 'lucide-react';
 import type { MenuGroup, MenuItem, ModuleId } from '@/types';
 
 // ---- 图标名 → 组件映射 ----
@@ -43,19 +43,21 @@ export function Sidebar({ activeModule, onModuleChange }: SidebarProps) {
       <div key={label} className="space-y-1">
         <button
           onClick={() => onModuleChange(label as ModuleId)}
-          className={`relative w-full text-left py-2 rounded-md text-sm font-medium transition-colors cursor-pointer ${
-            level === 0 ? 'px-3' : 'pl-7 pr-3 text-xs'
+          className={`group relative w-full text-left py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 cursor-pointer overflow-hidden ${
+            level === 0 ? 'px-3' : 'pl-8 pr-3 text-xs'
           } ${
             isActive
-              ? 'bg-blue-50 text-blue-700 font-semibold'
-              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              ? 'bg-gradient-to-r from-pink-100/90 to-rose-50/70 text-pink-700 border border-pink-200 shadow-sm shadow-pink-100/80'
+              : 'text-slate-600 border border-transparent hover:bg-pink-50/80 hover:text-pink-600'
           }`}
         >
           {isActive && (
-            <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-blue-600 rounded-r-md" />
+            <span className="absolute left-0 top-0 h-full w-1 bg-pink-400 rounded-r-md" />
           )}
-          {level > 0 && <span className="mr-2 text-slate-300">└</span>}
-          {label}
+          <span className="relative z-10">
+            {level > 0 && <span className="mr-2 text-pink-300">└</span>}
+            {label}
+          </span>
         </button>
         {typeof item !== 'string' && item.children.map((child) => renderItem(child, level + 1))}
       </div>
@@ -63,23 +65,24 @@ export function Sidebar({ activeModule, onModuleChange }: SidebarProps) {
   };
 
   return (
-    <div className="w-full h-full bg-white border-r border-slate-200 flex flex-col shadow-sm z-10">
+    <div className="w-full h-full bg-white/65 backdrop-blur-xl border-r border-pink-200/70 flex flex-col shadow-[4px_0_24px_rgba(244,114,182,0.08)] z-10">
       {/* Logo 区域 */}
-      <div className="p-4 border-b border-slate-100 flex items-center gap-2">
-        <div className="w-8 h-8 rounded bg-blue-600 flex items-center justify-center text-white font-bold text-xl">
-          D
+      <div className="p-5 border-b border-pink-200/70 flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-pink-400 to-rose-400 flex items-center justify-center text-white shadow-md shadow-pink-200 animate-[pulse_3s_ease-in-out_infinite]">
+          <Heart size={20} fill="currentColor" className="opacity-95" />
         </div>
-        <span className="font-bold text-lg tracking-wide text-slate-800">
-          DS Visualizer
-        </span>
+        <div className="flex flex-col">
+          <span className="font-extrabold text-lg tracking-wide text-slate-800">DS Universe</span>
+          <span className="text-[10px] text-pink-500 uppercase tracking-widest font-semibold">Sakura Engine</span>
+        </div>
       </div>
 
       {/* 菜单列表 */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
         {MENUS.map((menu) => (
-          <div key={menu.title} className="space-y-1">
+          <div key={menu.title} className="space-y-2">
             {/* 分组标题 */}
-            <div className="flex items-center gap-2 text-slate-400 font-semibold text-xs uppercase px-2 mb-2">
+            <div className="flex items-center gap-2 text-slate-500 font-bold text-xs uppercase tracking-wider px-2 mb-3">
               {ICON_MAP[menu.icon] ?? null}
               <span>{menu.title}</span>
             </div>

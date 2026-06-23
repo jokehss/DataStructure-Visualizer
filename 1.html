@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DS Visualizer - 仝小姐的专属宇宙 (樱花版)</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone@7.23.6/babel.min.js"></script>
+
+    <style>
+        /* 浅色樱花专属滚动条样式 */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(253, 242, 248, 0.8); /* pink-50 */
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: rgba(244, 114, 182, 0.3); /* Pink 400 transparent */
+            border-radius: 20px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(244, 114, 182, 0.6);
+        }
+        body { margin: 0; padding: 0; overflow: hidden; background-color: #fdf2f8; color: #334155; } /* slate-700 text */
+        
+        /* 选中文字颜色：柔和的樱花粉底色 */
+        ::selection { background: rgba(244, 114, 182, 0.2); color: #be185d; } /* pink-700 text */
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel" data-type="module">
+        const { useState, useEffect, useRef } = React;
+
+        const Icon = ({ path, size = 24, className = "", fill = "none" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                {path}
+            </svg>
+        );
+        const Play = (p) => <Icon {...p} fill={p.fill || "none"} path={<polygon points="5 3 19 12 5 21 5 3"/>} />;
+        const Pause = (p) => <Icon {...p} fill={p.fill || "none"} path={<><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></>} />;
+        const ListIcon = (p) => <Icon {...p} path={<><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></>} />;
+        const Search = (p) => <Icon {...p} path={<><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>} />;
+        const ArrowDownUp = (p) => <Icon {...p} path={<><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></>} />;
+        const Heart = (p) => <Icon {...p} path={<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />} />;
+        const CodeIcon = (p) => <Icon {...p} path={<><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></>} />;
+
+        const deepClone = (obj) => JSON.parse(JSON.stringify(obj));
+
+        const codeString = `// 专属数据结构推演引擎
+// Engineered with Love
+#include <stdio.h>
+#include <stdlib.h>
+
+typedef struct LNode {
+  int data;
+  struct LNode * next;
+} LNode, *LinkList;
+
+// 初始化链表
+bool List_Init (LinkList &pHead) {
+  pHead = (LNode *) malloc(sizeof(LNode)); 
+  if (pHead == NULL) return false; 
+  pHead->next = NULL; 
+  return true;
+}
+
+// 创建链表，头插法
+LinkList List_Create(LinkList &pHead) {
+  LNode *pTemp; int x; 
+  scanf("%d", &x);
+  while (x != 999) {
+    pTemp = (LNode *)malloc(sizeof(LNode)); 
+    pTemp->data = x;
+    pTemp->next = pHead->next; 
+    pHead->next = pTemp; 
+    scanf("%d", &x);
+  }
+  return pHead; 
+}
+
+// 通过值获取结点和其位序
+LNode* List_Get_Elem (LinkList pHead, int e, int &i) {
+  i = 1;
+  LNode *p = pHead->next; 
+  while(p != NULL && p->data != e) {
+    p = p->next;
+    i = i + 1;
+  }
+  return p;
+}`;
+
+        function* generateHeadInsertStates(values) {
+            let state = {
+                stepId: 0,
+                codeLine: 21,
+                description: "在清澈的内存中，准备开始头插法构建单链表。",
+                variables: { pHead: '{ data: null, next: null }', x: '?' },
+                nodes: [ { id: 'pHead', val: 'Head', x: 50, y: 250, type: 'head' } ],
+                pointers: [ { id: 'p_pHead_null', from: 'pHead', to: 'NULL', type: 'solid' } ],
+                highlights: []
+            };
+            yield deepClone(state);
+
+            let currentListIds = []; 
+            let stepCounter = 1;
+
+            for (let i = 0; i < values.length; i++) {
+                const val = values[i];
+                const sId = 's_' + i;
+
+                state.codeLine = 23;
+                state.stepId = stepCounter++;
+                state.description = `读取输入数据流 x = ${val}`;
+                state.variables.x = val;
+                yield deepClone(state);
+
+                state.codeLine = 24;
+                state.stepId = stepCounter++;
+                state.description = `为新星 (节点 pTemp) 申请内存空间。`;
+                state.variables.pTemp = `{ data: ?, next: null }`;
+                state.nodes.push({ id: sId, val: '?', x: 200, y: 100, type: 'normal' });
+                yield deepClone(state);
+
+                state.codeLine = 25;
+                state.stepId = stepCounter++;
+                state.description = `将灵魂 (数据 ${val}) 注入新节点。`;
+                state.variables.pTemp = `{ data: ${val}, next: null }`;
+                const sNode = state.nodes.find(n => n.id === sId);
+                if(sNode) sNode.val = val;
+                yield deepClone(state);
+
+                state.codeLine = 26;
+                state.stepId = stepCounter++;
+                state.description = `建立羁绊：新节点指向原有的星系 (首元节点)。`;
+                let nextNodeId = currentListIds.length > 0 ? currentListIds[0] : 'NULL';
+                state.pointers.push({ id: `p_${sId}_next`, from: sId, to: nextNodeId, type: 'dashed' });
+                yield deepClone(state);
+
+                state.codeLine = 27;
+                state.stepId = stepCounter++;
+                state.description = `更新源头：头结点将目光移向这颗新星。`;
+                state.pointers = state.pointers.filter(p => p.from !== 'pHead');
+                state.pointers.push({ id: `p_pHead_next`, from: 'pHead', to: sId, type: 'solid' });
+                
+                const sPointer = state.pointers.find(p => p.id === `p_${sId}_next`);
+                if(sPointer) sPointer.type = 'solid';
+
+                state.nodes.forEach(n => {
+                    if (currentListIds.includes(n.id) || n.id === 'NULL_NODE') {
+                        n.x += 150;
+                    }
+                });
+                const sNodeToMove = state.nodes.find(n => n.id === sId);
+                if(sNodeToMove) {
+                    sNodeToMove.x = 200;
+                    sNodeToMove.y = 250;
+                }
+                
+                currentListIds.unshift(sId);
+                yield deepClone(state);
+            }
+
+            state.codeLine = 30;
+            state.stepId = stepCounter++;
+            state.description = "输入结束，星系构建完成。";
+            state.variables.x = 999;
+            yield deepClone(state);
+        }
+
+        function* generateFindStates(values, targetValue) {
+            let state = {
+                stepId: 0,
+                codeLine: 35,
+                description: `在结构中寻找那个特别的值: ${targetValue}。`,
+                variables: { e: targetValue, i: '?', pHead: '...', p: '?' },
+                nodes: [ { id: 'pHead', val: 'Head', x: 50, y: 250, type: 'head' } ],
+                pointers: [],
+                highlights: []
+            };
+            
+            let prevId = 'pHead';
+            let currentListIds = [];
+            
+            for (let i = 0; i < values.length; i++) {
+                const sId = 'n_' + i;
+                state.nodes.push({ id: sId, val: values[i], x: 200 + i * 150, y: 250, type: 'normal' });
+                state.pointers.push({ id: `p_${prevId}_next`, from: prevId, to: sId, type: 'solid' });
+                prevId = sId;
+                currentListIds.push(sId);
+            }
+            state.pointers.push({ id: `p_${prevId}_null`, from: prevId, to: 'NULL', type: 'solid' });
+            yield deepClone(state);
+
+            let stepCounter = 1;
+            state.codeLine = 35;
+            state.stepId = stepCounter++;
+            state.description = `初始化距离计数器 i = 1`;
+            state.variables.i = 1;
+            yield deepClone(state);
+
+            state.codeLine = 36;
+            state.stepId = stepCounter++;
+            state.description = `目光 (指针 p) 落向第一颗星。`;
+            let pIndex = 0;
+            if (currentListIds.length > 0) {
+                state.highlights = [currentListIds[pIndex]];
+                state.variables.p = `Node(${values[pIndex]})`;
+            } else {
+                state.variables.p = `NULL`;
+            }
+            yield deepClone(state);
+
+            while (true) {
+                state.codeLine = 37;
+                state.stepId = stepCounter++;
+                if (pIndex >= currentListIds.length) {
+                    state.description = `走到了尽头，并未找到该节点。`;
+                    state.variables.p = `NULL`;
+                    yield deepClone(state);
+                    break;
+                }
+                
+                const currentData = values[pIndex];
+                if (currentData === targetValue) {
+                    state.description = `找到了！命中目标 e = ${targetValue}。`;
+                    yield deepClone(state);
+                    break;
+                } else {
+                    state.description = `不是当前值 (${currentData})，继续向后探索。`;
+                    yield deepClone(state);
+                }
+
+                state.codeLine = 38;
+                state.stepId = stepCounter++;
+                state.description = `指针 p 跃迁到下一节点。`;
+                pIndex++;
+                if (pIndex < currentListIds.length) {
+                    state.highlights = [currentListIds[pIndex]];
+                    state.variables.p = `Node(${values[pIndex]})`;
+                } else {
+                    state.highlights = [];
+                    state.variables.p = `NULL`;
+                }
+                yield deepClone(state);
+
+                state.codeLine = 39;
+                state.stepId = stepCounter++;
+                state.variables.i = Number(state.variables.i) + 1;
+                yield deepClone(state);
+            }
+            state.codeLine = 41;
+            state.stepId = stepCounter++;
+            yield deepClone(state);
+        }
+
+        function App() {
+            const [states, setStates] = useState([]);
+            const [currentIndex, setCurrentIndex] = useState(0);
+            const [isPlaying, setIsPlaying] = useState(false);
+            const [playSpeed, setPlaySpeed] = useState(800); 
+            
+            const [inputArray, setInputArray] = useState('10, 20, 30');
+            const [searchValue, setSearchValue] = useState(20);
+            const [currentMode, setCurrentMode] = useState('headInsert');
+            
+            const menus = [
+                { title: '星系结构 (线性表)', icon: <ListIcon size={18}/>, items: ['顺序表', '单链表', '双向链表'] },
+                { title: '深空探索 (查找)', icon: <Search size={18}/>, items: ['顺序查找', '折半查找'] },
+                { title: '秩序重组 (排序)', icon: <ArrowDownUp size={18}/>, items: ['直接插入排序', '快速排序'] },
+            ];
+
+            const activeModule = '单链表';
+
+            useEffect(() => {
+                let timer;
+                if (isPlaying && currentIndex < states.length - 1) {
+                    timer = setTimeout(() => setCurrentIndex(prev => prev + 1), playSpeed);
+                } else if (currentIndex >= states.length - 1) {
+                    setIsPlaying(false);
+                }
+                return () => clearTimeout(timer);
+            }, [isPlaying, currentIndex, states, playSpeed]);
+
+            const handleBuild = () => {
+                const values = inputArray.split(',').map(v => parseInt(v.trim())).filter(v => !isNaN(v));
+                if(values.length === 0) return;
+                setCurrentMode('headInsert');
+                setStates(Array.from(generateHeadInsertStates(values)));
+                setCurrentIndex(0);
+                setIsPlaying(false);
+            };
+
+            const handleFind = () => {
+                const values = inputArray.split(',').map(v => parseInt(v.trim())).filter(v => !isNaN(v));
+                const target = parseInt(searchValue);
+                if(values.length === 0 || isNaN(target)) return;
+                setCurrentMode('find');
+                setStates(Array.from(generateFindStates(values, target)));
+                setCurrentIndex(0);
+                setIsPlaying(false);
+            };
+
+            useEffect(() => { handleBuild(); }, []);
+
+            const currentState = states[currentIndex] || null;
+
+            const getLinePos = (fromId, toId, nodesList) => {
+                const fromNode = nodesList.find(n => n.id === fromId);
+                let toNode = nodesList.find(n => n.id === toId);
+                if (!fromNode) return null;
+                const startX = fromNode.x + 64; 
+                const startY = fromNode.y + 24; 
+                if (toId === 'NULL') return { x1: startX, y1: startY, x2: startX + 50, y2: startY };
+                if (!toNode) return null;
+                return { x1: startX, y1: startY, x2: toNode.x, y2: toNode.y + 24 };
+            };
+
+            return (
+                <div className="flex h-screen w-full bg-[#fdf2f8] font-sans text-slate-800 overflow-hidden relative">
+                    
+                    {/* 全局柔和网格背景 (Light dotted background) */}
+                    <div className="absolute inset-0 opacity-40 pointer-events-none" 
+                         style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(244,114,182,0.3) 1px, transparent 0)', backgroundSize: '32px 32px' }}>
+                    </div>
+
+                    {/* 左侧：樱花风明亮导航栏 */}
+                    <div className="w-64 bg-white/60 backdrop-blur-xl border-r border-pink-200/60 flex flex-col shadow-[4px_0_24px_rgba(244,114,182,0.08)] z-20">
+                        <div className="p-5 border-b border-pink-200/60 flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-pink-400 to-rose-400 flex items-center justify-center text-white shadow-md shadow-pink-200 animate-[pulse_3s_ease-in-out_infinite]">
+                                <Heart size={20} fill="currentColor" className="opacity-95"/>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="font-extrabold text-slate-800 tracking-wide text-lg">DS Universe</span>
+                                <span className="text-[10px] text-pink-500 uppercase tracking-widest font-semibold">For Miss Tong</span>
+                            </div>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
+                            {menus.map((menu, idx) => (
+                                <div key={idx} className="space-y-2">
+                                    <div className="flex items-center gap-2 text-slate-500 font-bold text-xs uppercase tracking-wider px-2 mb-3">
+                                        {menu.icon} <span>{menu.title}</span>
+                                    </div>
+                                    {menu.items.map(item => (
+                                        <div 
+                                            key={item} 
+                                            className={`px-3 py-2.5 rounded-lg text-sm font-medium cursor-pointer transition-all duration-300 relative overflow-hidden group ${
+                                                item === activeModule 
+                                                    ? 'bg-gradient-to-r from-pink-100/80 to-rose-50/50 text-pink-700 border border-pink-200 shadow-sm' 
+                                                    : 'text-slate-600 hover:bg-pink-50/80 hover:text-pink-600'
+                                            }`}
+                                        >
+                                            {item === activeModule && <div className="absolute left-0 top-0 w-1 h-full bg-pink-400 rounded-r-md"></div>}
+                                            <span className="relative z-10">{item}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* 右侧：明亮工作区 */}
+                    <div className="flex-1 flex flex-col min-w-0 relative z-10">
+                        
+                        {/* 顶栏 */}
+                        <div className="h-16 bg-white/50 backdrop-blur-xl border-b border-pink-200/60 flex items-center px-8 justify-between z-20 shadow-sm">
+                            <div className="flex items-center gap-3">
+                                <h1 className="text-xl font-bold text-slate-800 tracking-wide">{activeModule}</h1>
+                                <span className="px-2.5 py-0.5 rounded-full bg-pink-100 border border-pink-200 text-[10px] text-pink-600 font-mono tracking-widest">CORE ENGINE</span>
+                            </div>
+                            <div className="text-xs text-slate-500 font-mono flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-pink-400 animate-pulse shadow-[0_0_8px_rgba(244,114,182,0.6)]"></div>
+                                Connected
+                            </div>
+                        </div>
+
+                        <div className="flex-1 flex overflow-hidden">
+                            {/* 画布 (Canvas) - 樱花视效 */}
+                            <div className="flex-1 relative overflow-hidden flex flex-col">
+
+                                {}
+                                {/* 变量观测窗 - 轻拟物玻璃 */}
+                                {currentState && currentState.variables && (
+                                    <div className="absolute top-6 right-6 bg-white/80 backdrop-blur-lg border border-pink-200 rounded-xl p-5 shadow-lg shadow-pink-100/50 pointer-events-none z-20 min-w-[220px]">
+                                        <h3 className="text-slate-800 text-xs font-bold mb-3 flex items-center gap-2 uppercase tracking-widest border-b border-pink-100 pb-2">
+                                            <Icon path={<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>} size={14} className="text-pink-500"/>
+                                            Memory Scope
+                                        </h3>
+                                        <div className="space-y-2 text-sm font-mono text-slate-700">
+                                            {Object.entries(currentState.variables).map(([key, val]) => (
+                                                <div key={key} className="flex gap-4 items-center">
+                                                    <span className="text-pink-600 w-12 text-right font-semibold">{key}</span> 
+                                                    <span className="text-slate-300">:</span>
+                                                    <span className="flex-1 text-slate-800 truncate font-medium">{val}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* SVG 节点连线引擎 */}
+                                <div className="relative flex-1 mt-12">
+                                    <svg className="absolute inset-0 w-full h-full z-0 pointer-events-none">
+                                        <defs>
+                                            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                                <polygon points="0 0, 10 3.5, 0 7" fill="#f472b6" /> {/* pink-400 */}
+                                            </marker>
+                                            <marker id="arrowhead-dashed" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                                <polygon points="0 0, 10 3.5, 0 7" fill="#fb7185" /> {/* rose-400 */}
+                                            </marker>
+                                        </defs>
+                                        
+                                        {currentState && currentState.pointers.map((ptr, idx) => {
+                                            const pos = getLinePos(ptr.from, ptr.to, currentState.nodes);
+                                            if(!pos) return null;
+                                            const isDashed = ptr.type === 'dashed';
+                                            const strokeColor = isDashed ? '#fb7185' : '#f472b6'; // Rose or Pink
+                                            
+                                            return (
+                                                <line 
+                                                    key={ptr.id + idx}
+                                                    x1={pos.x1} y1={pos.y1} 
+                                                    x2={pos.x2} y2={pos.y2}
+                                                    stroke={strokeColor}
+                                                    strokeWidth="2.5"
+                                                    strokeDasharray={isDashed ? "6,6" : "0"}
+                                                    markerEnd={`url(#arrowhead${isDashed ? '-dashed' : ''})`}
+                                                    className="transition-all duration-700 ease-in-out"
+                                                />
+                                            );
+                                        })}
+                                    </svg>
+
+                                    {/* 节点渲染 - 清新高对比度实体 */}
+                                    {currentState && currentState.nodes.map(node => {
+                                        const isHighlighted = currentState.highlights && currentState.highlights.includes(node.id);
+                                        return (
+                                            <div 
+                                                key={node.id}
+                                                className="absolute transition-all duration-700 ease-in-out z-10 flex flex-col items-center"
+                                                style={{ left: node.x, top: node.y }}
+                                            >
+                                                {/* 活跃状态悬浮指针 */}
+                                                {isHighlighted && (
+                                                    <div className="absolute -top-10 text-pink-500 font-mono font-bold animate-bounce flex flex-col items-center drop-shadow-sm">
+                                                        <span>p</span>
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21l-8-9h6V3h4v9h6z"/></svg>
+                                                    </div>
+                                                )}
+
+                                                <div className={`
+                                                    w-16 h-12 flex rounded border-[1.5px] overflow-hidden transition-all duration-500
+                                                    ${isHighlighted 
+                                                        ? 'border-pink-500 bg-pink-50 shadow-md shadow-pink-200/50 scale-110' 
+                                                        : 'border-pink-300 bg-white shadow-sm'}
+                                                `}>
+                                                    <div className={`flex-1 flex items-center justify-center font-mono font-bold ${isHighlighted ? 'text-pink-700' : 'text-slate-700'}`}>
+                                                        {node.val === 'Head' ? '' : node.val}
+                                                    </div>
+                                                    <div className={`w-6 border-l-[1.5px] ${isHighlighted ? 'border-pink-400' : 'border-pink-200'} bg-slate-50/50 flex items-center justify-center`}>
+                                                        <div className={`w-1.5 h-1.5 rounded-full ${isHighlighted ? 'bg-pink-500 shadow-[0_0_5px_#f472b6]' : 'bg-slate-300'}`}></div>
+                                                    </div>
+                                                </div>
+                                                <div className="mt-3 text-[10px] font-mono tracking-widest text-slate-400 font-semibold uppercase">
+                                                    {node.id === 'pHead' ? 'pHead' : ''}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+
+                                    {/* NULL 指针尾节点 */}
+                                    {currentState && currentState.pointers.filter(p => p.to === 'NULL').map((ptr, idx) => {
+                                        const pos = getLinePos(ptr.from, 'NULL', currentState.nodes);
+                                        if(!pos) return null;
+                                        return (
+                                            <div 
+                                                key={`null_${idx}`} 
+                                                className="absolute text-slate-400 font-mono font-bold tracking-widest text-sm transition-all duration-700 ease-in-out z-10"
+                                                style={{ left: pos.x2 + 5, top: pos.y2 - 10 }}
+                                            >
+                                                NULL
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+
+                                {/* 底部状态说明条 - 清新风格 */}
+                                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 w-3/4 max-w-2xl pointer-events-none">
+                                    <div className="bg-white/90 backdrop-blur-md border border-pink-200 rounded-2xl p-4 shadow-lg shadow-pink-100 text-center flex flex-col items-center gap-2">
+                                        <div className="w-8 h-1 rounded-full bg-pink-200 mb-1"></div>
+                                        <p className="text-slate-700 text-sm tracking-wide font-medium leading-relaxed">
+                                            {currentState ? currentState.description : '引擎初始化中...'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {}
+                            {/* 代码区 - 明亮主题 */}
+                            <div className="w-[420px] bg-white border-l border-pink-200 flex flex-col z-10 shadow-[-10px_0_30px_rgba(244,114,182,0.05)]">
+                                <div className="flex items-center justify-between px-5 py-3 border-b border-pink-100 bg-slate-50/50">
+                                    <div className="flex items-center gap-2 text-slate-500 font-semibold text-xs tracking-wider">
+                                        <CodeIcon size={16} className="text-pink-400"/>
+                                        <span>C/C++ ENGINE</span>
+                                    </div>
+                                    <div className="flex gap-1.5">
+                                        <div className="w-2.5 h-2.5 rounded-full bg-slate-300"></div>
+                                        <div className="w-2.5 h-2.5 rounded-full bg-slate-300"></div>
+                                        <div className="w-2.5 h-2.5 rounded-full bg-slate-300"></div>
+                                    </div>
+                                </div>
+                                <div className="flex-1 overflow-y-auto font-mono text-[13px] py-4 leading-[1.8] text-slate-600 custom-scrollbar bg-white">
+                                    {codeString.split('\n').map((line, idx) => {
+                                        const lineNum = idx + 1;
+                                        const isActive = currentState && currentState.codeLine === lineNum;
+                                        
+                                        return (
+                                            <div 
+                                                key={lineNum} 
+                                                className={`flex px-2 py-0.5 transition-all duration-300
+                                                    ${isActive ? 'bg-pink-50/80 border-l-2 border-pink-500 text-pink-700 font-bold shadow-sm' : 'border-l-2 border-transparent hover:bg-slate-50'}
+                                                `}
+                                            >
+                                                <span className={`w-10 text-right pr-4 select-none mr-2 ${isActive ? 'text-pink-500' : 'text-slate-300'}`}>{lineNum}</span>
+                                                <span className="whitespace-pre overflow-x-hidden text-ellipsis">{line}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+
+                        {}
+                        {/* 底部控制台：玻璃拟态与明亮按钮 */}
+                        <div className="h-20 bg-white/80 backdrop-blur-xl border-t border-pink-200 flex flex-col justify-center shadow-[0_-10px_30px_rgba(244,114,182,0.05)] z-30">
+                            <div className="flex items-center justify-between px-8 w-full gap-6">
+                                
+                                {/* 进度控制条 */}
+                                <div className="flex items-center gap-4 w-72 bg-slate-50 border border-pink-100 rounded-full px-3 py-2 shadow-inner">
+                                    <button 
+                                        onClick={() => setIsPlaying(!isPlaying)}
+                                        className="text-white bg-gradient-to-br from-pink-400 to-rose-400 hover:from-pink-500 hover:to-rose-500 rounded-full p-2 shadow-md shadow-pink-200 transition-all"
+                                    >
+                                        {isPlaying ? <Pause size={14} fill="currentColor"/> : <Play size={14} fill="currentColor" className="ml-0.5" />}
+                                    </button>
+                                    <input 
+                                        type="range" 
+                                        min="0" max={states.length > 0 ? states.length - 1 : 0} 
+                                        value={currentIndex}
+                                        onChange={(e) => { setIsPlaying(false); setCurrentIndex(Number(e.target.value)); }}
+                                        className="flex-1 h-1 bg-pink-100 rounded-lg appearance-none cursor-pointer accent-pink-500"
+                                    />
+                                    <span className="text-[10px] font-mono text-slate-500 font-semibold mr-2">{currentIndex + 1}/{states.length}</span>
+                                </div>
+
+                                {/* 操作区 */}
+                                <div className="flex items-center gap-8">
+                                    <div className="flex items-center gap-3">
+                                        <input 
+                                            type="text" 
+                                            value={inputArray}
+                                            onChange={(e) => setInputArray(e.target.value)}
+                                            placeholder="如: 10,20,30"
+                                            className="bg-white border border-pink-200 text-slate-700 rounded-lg px-3 py-1.5 text-xs w-36 focus:border-pink-400 focus:ring-1 focus:ring-pink-400 outline-none transition-all placeholder-slate-300 font-mono shadow-sm"
+                                        />
+                                        <button onClick={handleBuild} className="text-xs px-5 py-1.5 font-bold rounded-lg bg-gradient-to-r from-pink-500 to-rose-400 hover:from-pink-600 hover:to-rose-500 text-white shadow-md shadow-pink-200 transition-all">
+                                            构建星系 (Build)
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="w-px h-6 bg-pink-200"></div>
+
+                                    <div className="flex items-center gap-3">
+                                        <input 
+                                            type="text" 
+                                            value={searchValue}
+                                            onChange={(e) => setSearchValue(e.target.value)}
+                                            placeholder="探索值"
+                                            className="bg-white border border-pink-200 text-slate-700 rounded-lg px-3 py-1.5 text-xs w-24 focus:border-pink-400 focus:ring-1 focus:ring-pink-400 outline-none transition-all placeholder-slate-300 font-mono shadow-sm"
+                                        />
+                                        <button onClick={handleFind} className="text-xs px-5 py-1.5 font-bold rounded-lg border border-pink-400 text-pink-600 hover:bg-pink-50 shadow-sm transition-all">
+                                            探索 (Find)
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

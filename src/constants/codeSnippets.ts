@@ -637,4 +637,5 @@ export const CODE_MAP: Record<OperationType, string> = {
   heapSort: HEAP_SORT_CODE,
   createSortArray: INSERTION_SORT_CODE,
   shuffleSortArray: INSERTION_SORT_CODE,
+  document: '',
 };

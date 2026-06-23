@@ -21,19 +21,18 @@ export function CodePanel({ codeLine, codeString }: CodePanelProps) {
   const lines = codeString.split('\n');
 
   return (
-    <div className="w-full h-full bg-[#1e1e1e] border-l border-slate-700 flex flex-col shadow-[-4px_0_15px_rgba(0,0,0,0.1)] z-10">
-      {/* 标题栏：模拟 macOS 窗口按钮 */}
-      <div className="flex items-center gap-2 px-4 py-3 bg-[#252526] border-b border-[#333]">
+    <div className="w-full h-full bg-white border-l border-pink-200 flex flex-col shadow-[-10px_0_30px_rgba(244,114,182,0.06)] z-10">
+      <div className="flex items-center justify-between px-5 py-3 bg-slate-50/60 border-b border-pink-100">
+        <span className="text-xs font-mono font-bold tracking-wider text-pink-500">C/C++ ENGINE</span>
         <div className="flex gap-1.5">
-          <div className="w-3 h-3 rounded-full bg-red-500" />
-          <div className="w-3 h-3 rounded-full bg-yellow-500" />
-          <div className="w-3 h-3 rounded-full bg-green-500" />
+          <div className="w-2.5 h-2.5 rounded-full bg-pink-200" />
+          <div className="w-2.5 h-2.5 rounded-full bg-rose-200" />
+          <div className="w-2.5 h-2.5 rounded-full bg-slate-200" />
         </div>
-        <span className="ml-2 text-xs font-mono text-slate-400">c/c++</span>
       </div>
 
       {/* 代码行 */}
-      <div className="flex-1 overflow-y-auto font-mono text-sm py-2 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto font-mono text-[13px] py-4 leading-[1.8] text-slate-600 custom-scrollbar">
         {lines.map((line, idx) => {
           const lineNum = idx + 1;
           const isActive = codeLine === lineNum;
@@ -41,16 +40,16 @@ export function CodePanel({ codeLine, codeString }: CodePanelProps) {
           return (
             <div
               key={lineNum}
-              className={`flex px-2 py-0.5 transition-colors duration-200 ${
+              className={`flex px-2 py-0.5 transition-all duration-300 ${
                 isActive
-                  ? 'bg-[#062f4a] border-l-4 border-blue-500 text-white'
-                  : 'border-l-4 border-transparent text-slate-400'
+                  ? 'bg-pink-50/90 border-l-2 border-pink-500 text-pink-700 font-bold shadow-sm'
+                  : 'border-l-2 border-transparent text-slate-500 hover:bg-slate-50'
               }`}
             >
-              <span className="w-8 text-right pr-4 opacity-50 select-none">
+              <span className={`w-10 text-right pr-4 select-none mr-2 ${isActive ? 'text-pink-500' : 'text-slate-300'}`}>
                 {lineNum}
               </span>
-              <span className="whitespace-pre">{line}</span>
+              <span className="whitespace-pre overflow-x-hidden text-ellipsis">{line}</span>
             </div>
           );
         })}

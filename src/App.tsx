@@ -5,6 +5,7 @@ import { CodePanel } from '@/components/CodeViewer/CodePanel';
 import { PlaybackBar } from '@/components/ControlPanel/PlaybackBar';
 import { GraphMatrixPanel } from '@/components/Graph/GraphMatrixPanel';
 import { GraphAdjListPanel } from '@/components/Graph/GraphAdjListPanel';
+import { DocumentPanel } from '@/components/Document/DocumentPanel';
 import { useAnimationPlayer } from '@/hooks/useAnimationPlayer';
 import {
   generateHeadInsertStates, generateTailInsertStates,
@@ -50,16 +51,15 @@ import {
   generateHeapSortStates,
 } from '@/core/sortGen';
 import { CODE_MAP } from '@/constants/codeSnippets';
+import { DOCUMENT_MAP } from '@/constants/documentContent';
 import type { ModuleId, PlaySpeed, AnimationState, OperationType, GraphVertex } from '@/types';
 
 const CQ_MAX = 8;
 const SQ_MAX = 6;
 const GRAPH_MAX = 10;
-const MIN_SIDEBAR_WIDTH = 180;
-const MAX_SIDEBAR_WIDTH = 420;
-const MIN_CODE_WIDTH = 260;
+const MIN_CODE_WIDTH = 360;
 const MAX_CODE_WIDTH = 720;
-const MIN_PLAYBACK_HEIGHT = 92;
+const MIN_PLAYBACK_HEIGHT = 120;
 const MAX_PLAYBACK_HEIGHT = 220;
 const DEFAULT_BINARY_TREE_INPUT = '1, 2, 4, #, #, 5, #, #, 3, #, 6, #, #';
 const GRAPH_LABELS = 'ABCDEFGHIJ'.split('');
@@ -140,6 +140,14 @@ function isSortModule(module: ModuleId): boolean {
   return isInsertionSortModule(module) || isQuickSortModule(module) || isHeapSortModule(module);
 }
 
+function isHuffmanModule(module: ModuleId): boolean {
+  return module === '哈夫曼树';
+}
+
+function isDocumentModule(module: ModuleId): boolean {
+  return module === '二叉树的性质' || isHuffmanModule(module);
+}
+
 function normalizeGraphLabel(value: string): string {
   return value.trim().toUpperCase();
 }
@@ -181,9 +189,8 @@ export default function App() {
   const mountedRef = useRef(false);
   const prevModuleRef = useRef<ModuleId>(activeModule);
 
-  const [sidebarWidth, setSidebarWidth] = useState(256);
   const [codeWidth, setCodeWidth] = useState(420);
-  const [playbackHeight, setPlaybackHeight] = useState(118);
+  const [playbackHeight, setPlaybackHeight] = useState(132);
 
   const parsedInput = useMemo(() => parseValues(inputArray), [inputArray]);
   const parsedFind = useMemo(() => parseSingle(findTarget), [findTarget]);
@@ -234,29 +241,18 @@ export default function App() {
     }
   })();
 
-  const startSidebarResize = useCallback((e: ReactMouseEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const startX = e.clientX;
-    const startWidth = sidebarWidth;
-    const onMove = (moveEvent: MouseEvent) => {
-      setSidebarWidth(clamp(startWidth + moveEvent.clientX - startX, MIN_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH));
-    };
-    const onUp = () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-  }, [sidebarWidth]);
-
   const startCodeResize = useCallback((e: ReactMouseEvent<HTMLDivElement>) => {
     e.preventDefault();
     const startX = e.clientX;
     const startWidth = codeWidth;
+    const previousUserSelect = document.body.style.userSelect;
+    document.body.style.userSelect = 'none';
     const onMove = (moveEvent: MouseEvent) => {
-      setCodeWidth(clamp(startWidth - (moveEvent.clientX - startX), MIN_CODE_WIDTH, MAX_CODE_WIDTH));
+      const maxWidth = Math.max(MIN_CODE_WIDTH, Math.min(MAX_CODE_WIDTH, Math.floor(window.innerWidth * 0.6)));
+      setCodeWidth(clamp(startWidth - (moveEvent.clientX - startX), MIN_CODE_WIDTH, maxWidth));
     };
     const onUp = () => {
+      document.body.style.userSelect = previousUserSelect;
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
@@ -268,10 +264,14 @@ export default function App() {
     e.preventDefault();
     const startY = e.clientY;
     const startHeight = playbackHeight;
+    const previousUserSelect = document.body.style.userSelect;
+    document.body.style.userSelect = 'none';
     const onMove = (moveEvent: MouseEvent) => {
-      setPlaybackHeight(clamp(startHeight - (moveEvent.clientY - startY), MIN_PLAYBACK_HEIGHT, MAX_PLAYBACK_HEIGHT));
+      const maxHeight = Math.max(MIN_PLAYBACK_HEIGHT, Math.min(MAX_PLAYBACK_HEIGHT, Math.floor(window.innerHeight * 0.4)));
+      setPlaybackHeight(clamp(startHeight - (moveEvent.clientY - startY), MIN_PLAYBACK_HEIGHT, maxHeight));
     };
     const onUp = () => {
+      document.body.style.userSelect = previousUserSelect;
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
@@ -295,6 +295,11 @@ export default function App() {
   }, [graphMatrix, graphVertices]);
 
   const handleInit = useCallback(() => {
+    if (isHuffmanModule(activeModule)) {
+      setOperationType('document');
+      setStates([]);
+      return;
+    }
     if (isGraphAdjListModule(activeModule)) {
       setGraphAdjListPreview(graphVertices, graphMatrix, graphVertices.length === 0 ? '点击画布创建顶点，最多 10 个。' : '当前图以邻接链表方式展示。');
       return;
@@ -614,6 +619,21 @@ export default function App() {
     }
   }, [activeModule, setGraphAdjListPreview, setGraphPreview]);
 
+  const handleGraphVertexMove = useCallback((vertexId: string, point: { x: number; y: number }) => {
+    if (!isGraphEditModule(activeModule)) return;
+    const nextVertices = graphVertices.map((vertex) => (
+      vertex.id === vertexId
+        ? { ...vertex, x: point.x, y: point.y }
+        : vertex
+    ));
+    setGraphVertices(nextVertices);
+    if (isGraphAdjListModule(activeModule)) {
+      setGraphAdjListPreview(nextVertices, graphMatrix, `顶点 ${vertexId} 已移动，邻接链表关系保持不变。`);
+    } else {
+      setGraphPreview(nextVertices, graphMatrix, `顶点 ${vertexId} 已移动，图的边和邻接矩阵关系保持不变。`);
+    }
+  }, [activeModule, graphMatrix, graphVertices, setGraphAdjListPreview, setGraphPreview]);
+
   const handleGraphBfs = useCallback(() => {
     if (graphVertices.length === 0) {
       setGraphWarning('请先点击画布创建顶点，再开始 BFS。', 'graphBfs');
@@ -791,46 +811,69 @@ export default function App() {
   const matrixData = currentState?.graphMatrix ?? graphMatrix;
   const matrixHighlights = currentState?.matrixHighlights ?? [];
   const adjacencyList = currentState?.adjacencyList;
+  const documentContent = DOCUMENT_MAP[activeModule];
+  const showDocumentPanel = isDocumentModule(activeModule) && Boolean(documentContent);
 
   return (
-    <div className="flex h-screen w-full bg-slate-50 font-sans overflow-hidden text-slate-800">
-      <div className="shrink-0 min-w-0" style={{ width: sidebarWidth }}>
+    <div className="relative flex h-screen w-full overflow-hidden bg-gradient-to-br from-pink-50 via-white to-rose-50 font-sans text-slate-800">
+      <div className="pointer-events-none absolute -top-28 left-1/4 h-72 w-72 rounded-full bg-pink-200/35 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-10 right-10 h-80 w-80 rounded-full bg-rose-200/30 blur-3xl" />
+      <div className="pointer-events-none absolute inset-0 opacity-60"
+        style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(244,114,182,0.12) 1px, transparent 0)', backgroundSize: '28px 28px' }} />
+
+      <div className="relative z-10 shrink-0 min-w-0 w-64">
         <Sidebar activeModule={activeModule} onModuleChange={handleModuleChange} />
       </div>
-      <div
-        data-no-drag
-        className="w-1.5 cursor-col-resize bg-slate-200 hover:bg-blue-400 active:bg-blue-500 transition-colors z-30 shrink-0"
-        title="拖动调整侧边栏宽度"
-        onMouseDown={startSidebarResize}
-      />
 
-      <div className="flex-1 flex flex-col min-w-0">
-        <div className="h-14 bg-white border-b border-slate-200 flex items-center px-6 shadow-sm justify-between z-10">
-          <h1 className="text-xl font-bold text-slate-800">
+      <div className="relative z-10 flex-1 flex flex-col min-w-0 p-4 gap-3">
+        <div className="h-16 rounded-2xl border border-pink-200/80 bg-white/80 backdrop-blur-xl flex items-center px-6 shadow-lg shadow-pink-100/70 justify-between z-10">
+          <h1 className="text-xl font-extrabold tracking-wide text-slate-800">
             {activeModule}{' '}
-            <span className="text-xs font-normal ml-2 px-2 py-1 bg-amber-100 text-amber-700 rounded-full border border-amber-200">必考核心</span>
+            <span className="text-xs font-bold ml-2 px-2.5 py-1 bg-pink-50 text-pink-600 rounded-full border border-pink-200 shadow-sm shadow-pink-100">必考核心</span>
           </h1>
           <div className="flex items-center gap-4 text-sm text-slate-500">
-            <span className="text-xs font-mono text-slate-400">{operationType}</span>
-            <span>Powered by Frontend State Machine Engine</span>
+            <span className="text-xs font-mono text-pink-500 bg-pink-50 border border-pink-100 px-2.5 py-1 rounded-full">{operationType}</span>
+            <span className="hidden lg:inline">Powered by Sakura State Machine Engine</span>
           </div>
         </div>
 
-        <div className="flex-1 flex overflow-hidden">
-          <MemoryCanvas
-            currentState={currentState}
-            module={activeModule}
-            isGraphEditMode={isGraphEditModule(activeModule)}
-            onGraphCanvasClick={handleGraphCanvasClick}
-          />
+        <div className="flex-1 flex overflow-hidden rounded-3xl border border-pink-200/80 bg-white/55 backdrop-blur-xl shadow-xl shadow-pink-100/70">
+          {isHuffmanModule(activeModule) ? (
+            <div className="flex-1 relative bg-gradient-to-br from-white via-pink-50/60 to-rose-50 overflow-hidden flex items-center justify-center">
+              <div className="absolute inset-0 opacity-70 pointer-events-none"
+                style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(244,114,182,0.14) 1px, transparent 0)', backgroundSize: '24px 24px' }} />
+              <div className="relative z-10 max-w-lg rounded-3xl border border-pink-200 bg-white/85 backdrop-blur-xl p-7 shadow-xl shadow-pink-100">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-pink-500 mb-2">理论阅读模块</p>
+                <h2 className="text-2xl font-extrabold text-slate-800 mb-3">哈夫曼树</h2>
+                <p className="text-sm leading-7 text-slate-600">
+                  本模块不生成算法动画。右侧文档区说明哈夫曼树的概念、构造步骤、示例和编码特点。
+                </p>
+              </div>
+            </div>
+          ) : (
+            <MemoryCanvas
+              currentState={currentState}
+              module={activeModule}
+              isGraphEditMode={isGraphEditModule(activeModule)}
+              onGraphCanvasClick={handleGraphCanvasClick}
+              onGraphVertexMove={handleGraphVertexMove}
+              isGraphVertexDragDisabled={isPlaying}
+            />
+          )}
           <div
             data-no-drag
-            className="w-1.5 cursor-col-resize bg-slate-800 hover:bg-blue-500 active:bg-blue-400 transition-colors z-30 shrink-0"
+            className="w-3 cursor-col-resize bg-pink-100/80 hover:bg-pink-300 active:bg-rose-300 transition-colors z-30 shrink-0"
             title="拖动调整代码面板宽度"
             onMouseDown={startCodeResize}
           />
           <div className="shrink-0 h-full min-w-0" style={{ width: codeWidth }}>
-            {showGraphPanel ? (
+            {showDocumentPanel && documentContent ? (
+              <DocumentPanel
+                title={documentContent.title}
+                subtitle={documentContent.subtitle}
+                sections={documentContent.sections}
+              />
+            ) : showGraphPanel ? (
               <div className="h-full flex flex-col min-h-0">
                 <div className="h-[38%] min-h-[170px]">
                   <GraphMatrixPanel vertices={matrixVertices} matrix={matrixData} activeCells={matrixHighlights} />
@@ -856,7 +899,7 @@ export default function App() {
 
         <div
           data-no-drag
-          className="h-1.5 cursor-row-resize bg-slate-200 hover:bg-blue-400 active:bg-blue-500 transition-colors z-30 shrink-0"
+          className="h-3 cursor-row-resize rounded-full bg-pink-100/80 hover:bg-pink-300 active:bg-rose-300 transition-colors z-30 shrink-0"
           title="拖动调整底部控制栏高度"
           onMouseDown={startPlaybackResize}
         />

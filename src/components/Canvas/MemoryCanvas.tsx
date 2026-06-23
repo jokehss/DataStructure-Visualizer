@@ -14,6 +14,8 @@ export interface MemoryCanvasProps {
   module?: ModuleId;
   isGraphEditMode?: boolean;
   onGraphCanvasClick?: (point: { x: number; y: number }) => void;
+  onGraphVertexMove?: (vertexId: string, point: { x: number; y: number }) => void;
+  isGraphVertexDragDisabled?: boolean;
 }
 
 // ======================== 工具 ========================
@@ -120,15 +122,15 @@ function getLineCoords(fromId: string, toId: string, nodes: Node[], label?: stri
 
 function getVarColor(name: string): string {
   const m: Record<string, string> = {
-    L:'text-blue-400', s:'text-purple-400', pTemp:'text-purple-400',
-    x:'text-green-400', target:'text-green-400', e:'text-green-400',
-    p:'text-yellow-400', pTail:'text-amber-400', q:'text-yellow-400',
-    found:'text-yellow-400', j:'text-cyan-400', i:'text-cyan-400',
-    length:'text-orange-300', top:'text-white', 'S.top':'text-white', front:'text-white',
-    rear:'text-white', pHead:'text-white', T:'text-cyan-300', depth:'text-purple-300',
-    result:'text-emerald-300', operation:'text-amber-300',
+    L:'text-pink-600', s:'text-fuchsia-600', pTemp:'text-fuchsia-600',
+    x:'text-emerald-600', target:'text-emerald-600', e:'text-emerald-600',
+    p:'text-amber-600', pTail:'text-orange-600', q:'text-amber-600',
+    found:'text-amber-600', j:'text-cyan-600', i:'text-cyan-600',
+    length:'text-orange-600', top:'text-slate-700', 'S.top':'text-slate-700', front:'text-slate-700',
+    rear:'text-slate-700', pHead:'text-slate-700', T:'text-cyan-600', depth:'text-fuchsia-600',
+    result:'text-emerald-600', operation:'text-rose-600',
   };
-  return m[name] ?? 'text-slate-300';
+  return m[name] ?? 'text-slate-600';
 }
 
 function isFixedCursor(name: string): boolean {
@@ -136,7 +138,7 @@ function isFixedCursor(name: string): boolean {
 }
 
 function cursorColorHex(name: string): string {
-  return isFixedCursor(name) ? '#ffffff' : '#fbbf24';
+  return isFixedCursor(name) ? '#be185d' : '#f59e0b';
 }
 
 function nodeBox(node: Node) {
@@ -199,13 +201,13 @@ function cursorAnchor(node: Node, label: string, index: number, total: number) {
 }
 
 function pointerStroke(ptr: Pointer, isActive: boolean, isDeleting: boolean): string {
-  if (ptr.color === 'warning' || isDeleting) return '#f87171';
-  if (ptr.color === 'success') return '#34d399';
-  if (ptr.color === 'active' || ptr.active || isActive) return '#fbbf24';
-  if (ptr.type === 'dashed' || ptr.dashed) return '#cbd5e1';
-  if (ptr.type === 'tree-edge') return '#22d3ee';
-  if (ptr.type === 'graph-edge') return '#60a5fa';
-  return '#f8fafc';
+  if (ptr.color === 'warning' || isDeleting) return '#fb7185';
+  if (ptr.color === 'success') return '#10b981';
+  if (ptr.color === 'active' || ptr.active || isActive) return '#f59e0b';
+  if (ptr.type === 'dashed' || ptr.dashed) return '#fb7185';
+  if (ptr.type === 'tree-edge') return '#06b6d4';
+  if (ptr.type === 'graph-edge') return '#f472b6';
+  return '#f472b6';
 }
 
 function formatVarValue(value: string): string {
@@ -294,18 +296,36 @@ function EnhancedCursor({ label, direction = 'down' }: { label: string; directio
 
 // ======================== 主组件 ========================
 
-export function MemoryCanvas({ currentState, isGraphEditMode = false, onGraphCanvasClick }: MemoryCanvasProps) {
+export function MemoryCanvas({
+  currentState,
+  isGraphEditMode = false,
+  onGraphCanvasClick,
+  onGraphVertexMove,
+  isGraphVertexDragDisabled = false,
+}: MemoryCanvasProps) {
   // ---- 平移 ----
   const [translate, setTranslate] = useState<Vec2>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const dragOrigin = useRef<Vec2>({ x: 0, y: 0 });
   const mouseDownPoint = useRef<Vec2>({ x: 0, y: 0 });
+  const graphDragIdRef = useRef<string | null>(null);
+  const graphDragOffsetRef = useRef<Vec2>({ x: 0, y: 0 });
+  const [draggingGraphVertexId, setDraggingGraphVertexId] = useState<string | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const translateRef = useRef(translate);
   translateRef.current = translate;
 
   // ---- 缩放 ----
   const [scale, setScale] = useState(1);
+
+  const clientToCanvas = useCallback((clientX: number, clientY: number): Vec2 | null => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    return {
+      x: (clientX - rect.left - translateRef.current.x) / scale,
+      y: (clientY - rect.top - translateRef.current.y) / scale,
+    };
+  }, [scale]);
 
   const handleWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
@@ -315,6 +335,7 @@ export function MemoryCanvas({ currentState, isGraphEditMode = false, onGraphCan
 
   // ---- 拖拽 ----
   const handleMouseDown = useCallback((e: MouseEvent) => {
+    if (graphDragIdRef.current) return;
     if (e.button !== 0) return;
     if ((e.target as HTMLElement).closest('button, input, select, [data-no-drag]')) return;
     setIsDragging(true);
@@ -324,11 +345,26 @@ export function MemoryCanvas({ currentState, isGraphEditMode = false, onGraphCan
   }, []);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (graphDragIdRef.current && onGraphVertexMove) {
+      const point = clientToCanvas(e.clientX, e.clientY);
+      if (!point) return;
+      onGraphVertexMove(graphDragIdRef.current, {
+        x: Math.max(40, point.x - graphDragOffsetRef.current.x),
+        y: Math.max(40, point.y - graphDragOffsetRef.current.y),
+      });
+      return;
+    }
     if (!isDragging) return;
     setTranslate({ x: e.clientX - dragOrigin.current.x, y: e.clientY - dragOrigin.current.y });
-  }, [isDragging]);
+  }, [clientToCanvas, isDragging, onGraphVertexMove]);
 
   const handleMouseUp = useCallback((e: MouseEvent) => {
+    if (graphDragIdRef.current) {
+      graphDragIdRef.current = null;
+      setDraggingGraphVertexId(null);
+      setIsDragging(false);
+      return;
+    }
     const wasDragging = isDragging;
     setIsDragging(false);
     if (!wasDragging || !isGraphEditMode || !onGraphCanvasClick) return;
@@ -336,18 +372,31 @@ export function MemoryCanvas({ currentState, isGraphEditMode = false, onGraphCan
     const dx = e.clientX - mouseDownPoint.current.x;
     const dy = e.clientY - mouseDownPoint.current.y;
     if (Math.hypot(dx, dy) > 4) return;
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    onGraphCanvasClick({
-      x: (e.clientX - rect.left - translateRef.current.x) / scale,
-      y: (e.clientY - rect.top - translateRef.current.y) / scale,
-    });
-  }, [isDragging, isGraphEditMode, onGraphCanvasClick, scale]);
+    const point = clientToCanvas(e.clientX, e.clientY);
+    if (!point) return;
+    onGraphCanvasClick(point);
+  }, [clientToCanvas, isDragging, isGraphEditMode, onGraphCanvasClick]);
+
+  const handleGraphVertexMouseDown = useCallback((e: MouseEvent<HTMLDivElement>, node: Node) => {
+    if (!isGraphEditMode || isGraphVertexDragDisabled || !onGraphVertexMove) return;
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const point = clientToCanvas(e.clientX, e.clientY);
+    if (!point) return;
+    graphDragIdRef.current = node.id;
+    setDraggingGraphVertexId(node.id);
+    graphDragOffsetRef.current = {
+      x: point.x - node.x,
+      y: point.y - node.y,
+    };
+    setIsDragging(false);
+  }, [clientToCanvas, isGraphEditMode, isGraphVertexDragDisabled, onGraphVertexMove]);
 
   // ---- 空状态 ----
   if (!currentState) {
     return (
-      <div className="flex-1 relative bg-slate-900 overflow-hidden flex flex-col items-center justify-center">
+      <div className="flex-1 relative bg-gradient-to-br from-white via-pink-50/60 to-rose-50 overflow-hidden flex flex-col items-center justify-center">
         <p className="text-slate-500 text-sm">选择一个算法操作开始可视化</p>
       </div>
     );
@@ -373,8 +422,8 @@ export function MemoryCanvas({ currentState, isGraphEditMode = false, onGraphCan
   return (
     <div
       ref={canvasRef}
-      className="flex-1 relative bg-slate-900 overflow-hidden flex flex-col select-none"
-      style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+      className="flex-1 relative bg-gradient-to-br from-white via-pink-50/60 to-rose-50 overflow-hidden flex flex-col select-none"
+      style={{ cursor: draggingGraphVertexId ? 'grabbing' : isDragging ? 'grabbing' : 'grab' }}
       onWheel={handleWheel}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
@@ -382,8 +431,8 @@ export function MemoryCanvas({ currentState, isGraphEditMode = false, onGraphCan
       onMouseLeave={handleMouseUp}
     >
       {/* 背景网格 */}
-      <div className="absolute inset-0 opacity-20 pointer-events-none"
-        style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(255,255,255,0.2) 1px, transparent 0)', backgroundSize: '24px 24px' }} />
+      <div className="absolute inset-0 opacity-70 pointer-events-none"
+        style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(244,114,182,0.14) 1px, transparent 0)', backgroundSize: '24px 24px' }} />
 
       {/* ======== 可平移缩放内容层 ======== */}
       <div className="absolute inset-0 z-10"
@@ -393,16 +442,16 @@ export function MemoryCanvas({ currentState, isGraphEditMode = false, onGraphCan
         <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ overflow: 'visible' }}>
           <defs>
             <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-              <polygon points="0 0, 10 3.5, 0 7" fill="#f8fafc" />
+              <polygon points="0 0, 10 3.5, 0 7" fill="#f472b6" />
             </marker>
             <marker id="arrowhead-dashed" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-              <polygon points="0 0, 10 3.5, 0 7" fill="#cbd5e1" />
+              <polygon points="0 0, 10 3.5, 0 7" fill="#fb7185" />
             </marker>
             <marker id="arrowhead-deleting" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-              <polygon points="0 0, 10 3.5, 0 7" fill="#f87171" />
+              <polygon points="0 0, 10 3.5, 0 7" fill="#fb7185" />
             </marker>
             <marker id="arrowhead-active" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-              <polygon points="0 0, 10 3.5, 0 7" fill="#fbbf24" />
+              <polygon points="0 0, 10 3.5, 0 7" fill="#f59e0b" />
             </marker>
             <marker id="arrowhead-success" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
               <polygon points="0 0, 10 3.5, 0 7" fill="#34d399" />
@@ -474,8 +523,8 @@ export function MemoryCanvas({ currentState, isGraphEditMode = false, onGraphCan
             const isHL = highlights.includes(node.id);
 
             // 填充色：活跃数据橙色，否则白/灰
-            const fill = isActive ? '#f97316' : '#334155'; // orange-500 : slate-700
-            const stroke = isHL ? '#fbbf24' : (isActive ? '#ea580c' : '#64748b');
+            const fill = isActive ? '#fb7185' : '#fff7fb';
+            const stroke = isHL ? '#f59e0b' : (isActive ? '#f43f5e' : '#f9a8d4');
             const opacity = node.status === 'deleting' ? 0.4 : 1;
 
             const d = getWedgePath(cx, cy, r, sa, ea);
@@ -491,13 +540,13 @@ export function MemoryCanvas({ currentState, isGraphEditMode = false, onGraphCan
                 <path d={d} fill={fill} stroke={stroke} strokeWidth="2"
                   className="transition-all duration-700 ease-out" />
                 {/* 槽位值 */}
-                <text x={tx} y={ty} fill="white" fontFamily="monospace" fontWeight="bold"
+                <text x={tx} y={ty} fill={isActive ? 'white' : '#475569'} fontFamily="monospace" fontWeight="bold"
                   fontSize="13" textAnchor="middle" dominantBaseline="central">
                   {node.val}
                 </text>
                 {/* 槽位编号 */}
                 <text x={cx + (r + 14) * Math.cos(midAngle)} y={cy + (r + 14) * Math.sin(midAngle)}
-                  fill="#94a3b8" fontFamily="monospace" fontSize="9" textAnchor="middle" dominantBaseline="central">
+                  fill="#f472b6" fontFamily="monospace" fontSize="9" textAnchor="middle" dominantBaseline="central">
                   {node.id.replace('cq_', '')}
                 </text>
                 {/* Front/Rear 游标 */}
@@ -536,27 +585,31 @@ export function MemoryCanvas({ currentState, isGraphEditMode = false, onGraphCan
           // 普通队列活跃节点 → 亮橙色背景
           const isSqActive = isArray && isActive && node.val !== '∅';
 
-          let border = 'border-blue-500', bg = 'bg-slate-800', glow = '';
-          if (isDel) { border = 'border-red-500'; bg = 'bg-red-950/60'; glow = 'shadow-[0_0_12px_rgba(239,68,68,0.5)]'; }
-          else if (isHead) { border = isHL ? 'border-amber-400 ring-2 ring-amber-400/50' : 'border-amber-500'; }
+          let border = 'border-pink-300', bg = 'bg-white', glow = 'shadow-sm shadow-pink-100/80';
+          if (isDel) { border = 'border-rose-400'; bg = 'bg-rose-50'; glow = 'shadow-[0_0_16px_rgba(251,113,133,0.35)]'; }
+          else if (isHead) { border = isHL ? 'border-amber-400 ring-2 ring-amber-300/50' : 'border-pink-300'; bg = 'bg-pink-50'; }
           else if (isStack) {
-            if (isActive) border = isHL ? 'border-violet-400 ring-2 ring-violet-400/50' : 'border-violet-500';
-            else { border = isHL ? 'border-slate-400 ring-2 ring-slate-400/40' : 'border-slate-600'; bg = 'bg-slate-950/80'; }
+            if (isActive) { border = isHL ? 'border-fuchsia-400 ring-2 ring-fuchsia-300/50' : 'border-fuchsia-300'; bg = 'bg-fuchsia-50'; }
+            else { border = isHL ? 'border-pink-400 ring-2 ring-pink-300/40' : 'border-pink-200'; bg = 'bg-white'; }
           }
           else if (isArray) {
-            if (isSqBoundary) { border = 'border-slate-500'; bg = 'bg-slate-900'; }
-            else if (isSqActive) { border = 'border-orange-400'; bg = 'bg-orange-500'; }
-            else { border = isHL ? 'border-emerald-400 ring-2 ring-emerald-400/50' : 'border-emerald-600'; }
+            if (isSqBoundary) { border = 'border-slate-300'; bg = 'bg-slate-50'; }
+            else if (isSqActive) { border = 'border-rose-400'; bg = 'bg-gradient-to-br from-pink-400 to-rose-400'; }
+            else { border = isHL ? 'border-emerald-400 ring-2 ring-emerald-300/50' : 'border-pink-300'; }
           }
           else if (isTree) {
             const isVisitedOnly = activeNodes.includes(node.id) && !highlights.includes(node.id);
-            if (isVisitedOnly) { border = 'border-emerald-400'; bg = 'bg-emerald-950/70'; }
-            else { border = isHL ? 'border-cyan-300 ring-2 ring-cyan-300/50' : 'border-cyan-500'; }
+            if (isVisitedOnly) { border = 'border-emerald-400'; bg = 'bg-emerald-50'; }
+            else { border = isHL ? 'border-cyan-400 ring-2 ring-cyan-200/60' : 'border-pink-300'; }
           }
-          else if (isGraph) { border = isHL ? 'border-amber-300 ring-4 ring-amber-300/40' : 'border-blue-400'; bg = isHL ? 'bg-blue-600' : 'bg-slate-800'; }
-          else if (isAdjHead) { border = isHL ? 'border-amber-300 ring-2 ring-amber-300/50' : 'border-amber-500'; bg = 'bg-slate-800'; }
-          else if (isAdjArc) { border = isHL ? 'border-blue-300 ring-2 ring-blue-300/50' : 'border-blue-500'; bg = 'bg-slate-800'; }
-          else { border = isHL ? 'border-blue-400 ring-2 ring-blue-400/50' : 'border-blue-500'; }
+          else if (isGraph) {
+            const isGraphDragging = draggingGraphVertexId === node.id;
+            border = isGraphDragging ? 'border-amber-300 ring-4 ring-amber-200/60' : isHL ? 'border-amber-300 ring-4 ring-amber-200/50' : 'border-pink-300';
+            bg = isGraphDragging ? 'bg-gradient-to-br from-pink-400 to-rose-400' : isHL ? 'bg-gradient-to-br from-pink-400 to-rose-400' : 'bg-white';
+          }
+          else if (isAdjHead) { border = isHL ? 'border-amber-300 ring-2 ring-amber-300/50' : 'border-amber-300'; bg = 'bg-amber-50'; }
+          else if (isAdjArc) { border = isHL ? 'border-pink-400 ring-2 ring-pink-300/50' : 'border-pink-300'; bg = 'bg-white'; }
+          else { border = isHL ? 'border-pink-500 ring-2 ring-pink-300/50' : 'border-pink-300'; }
 
           let label: string;
           if (node.id === 'L') label = 'L (Head)';
@@ -570,16 +623,16 @@ export function MemoryCanvas({ currentState, isGraphEditMode = false, onGraphCan
           else if (isArray) label = `data[${node.id.replace('arr_', '').replace('sq_', '')}]`;
           else label = node.id;
 
-          let lblClr = 'text-slate-400 bg-slate-800/80';
-          if (isDel) lblClr = 'text-red-400 bg-red-900/60';
+          let lblClr = 'text-slate-500 bg-white/80 border border-pink-100';
+          if (isDel) lblClr = 'text-rose-500 bg-rose-50 border border-rose-100';
           else if (isHL) {
-            if (isStack) lblClr = 'text-violet-300 bg-violet-900/60';
-            else if (isArray) lblClr = isSqActive ? 'text-white' : 'text-emerald-300 bg-emerald-900/60';
+            if (isStack) lblClr = 'text-fuchsia-600 bg-fuchsia-50 border border-fuchsia-100';
+            else if (isArray) lblClr = isSqActive ? 'text-white' : 'text-emerald-600 bg-emerald-50 border border-emerald-100';
             else if (isTree) lblClr = activeNodes.includes(node.id) && !highlights.includes(node.id)
-              ? 'text-emerald-200 bg-emerald-900/60'
-              : 'text-cyan-200 bg-cyan-900/60';
-            else if (isGraph) lblClr = 'text-amber-200 bg-amber-900/60';
-            else lblClr = 'text-amber-300 bg-amber-900/60';
+              ? 'text-emerald-600 bg-emerald-50 border border-emerald-100'
+              : 'text-cyan-600 bg-cyan-50 border border-cyan-100';
+            else if (isGraph) lblClr = 'text-amber-700 bg-amber-50 border border-amber-100';
+            else lblClr = 'text-amber-700 bg-amber-50 border border-amber-100';
           } else if (isSqActive) { lblClr = 'text-white'; }
 
           // 栈节点：横向排列（标签在右侧，避免垂直重叠）
@@ -588,7 +641,8 @@ export function MemoryCanvas({ currentState, isGraphEditMode = false, onGraphCan
           return (
             <div key={node.id}
               data-graph-node={isGraph ? true : undefined}
-              className={`absolute transition-all duration-700 ease-out z-10 flex ${isStackLayout ? 'flex-row items-center' : 'flex-col items-center'} ${glow}`}
+              onMouseDown={isGraph ? (e) => handleGraphVertexMouseDown(e, node) : undefined}
+                className={`absolute transition-all duration-700 ease-out z-10 flex ${isStackLayout ? 'flex-row items-center' : 'flex-col items-center'} ${glow} ${isGraph ? 'cursor-grab active:cursor-grabbing hover:drop-shadow-[0_0_12px_rgba(244,114,182,0.55)]' : ''}`}
               style={{ left: node.x, top: node.y, opacity: isDel ? 0.45 : 1 }}>
               {/* 隐藏的旧游标占位保留兼容；实际箭头在 SVG 层统一绘制 */}
               {cursors.length > 0 && false && (
@@ -599,27 +653,27 @@ export function MemoryCanvas({ currentState, isGraphEditMode = false, onGraphCan
 
               {/* 节点盒子 */}
               {isGraph ? (
-                <div className={`w-14 h-14 rounded-full border-2 flex items-center justify-center font-mono font-extrabold text-lg text-white shadow-lg ${bg} ${border}`}>
+                <div className={`w-14 h-14 rounded-full border-2 flex items-center justify-center font-mono font-extrabold text-lg shadow-lg ${isHL || draggingGraphVertexId === node.id ? 'text-white shadow-pink-200' : 'text-slate-700 shadow-pink-100'} ${bg} ${border}`}>
                   {node.val}
                 </div>
               ) : isTree ? (
                 <div className={`w-[84px] h-[52px] flex rounded-md border-2 overflow-hidden ${bg} ${border}`}>
-                  <div className="w-[22px] border-r-2 border-slate-600 flex items-center justify-center bg-slate-700/80">
-                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-300" />
+                  <div className="w-[22px] border-r-2 border-pink-200 flex items-center justify-center bg-pink-50/80">
+                    <div className="w-1.5 h-1.5 rounded-full bg-pink-400" />
                   </div>
-                  <div className="flex-1 flex items-center justify-center font-mono font-bold text-white bg-slate-800/70">{node.val}</div>
-                  <div className="w-[22px] border-l-2 border-slate-600 flex items-center justify-center bg-slate-700/80">
-                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-300" />
+                  <div className="flex-1 flex items-center justify-center font-mono font-bold text-slate-700 bg-white/80">{node.val}</div>
+                  <div className="w-[22px] border-l-2 border-pink-200 flex items-center justify-center bg-pink-50/80">
+                    <div className="w-1.5 h-1.5 rounded-full bg-pink-400" />
                   </div>
                 </div>
               ) : isStack || isArray ? (
-                <div className={`border-2 rounded-sm overflow-hidden flex items-center justify-center font-mono font-bold text-sm ${bg} ${border} ${isSqActive ? 'text-white' : 'text-white'}`}
+                <div className={`border-2 rounded-md overflow-hidden flex items-center justify-center font-mono font-bold text-sm shadow-sm ${bg} ${border} ${isSqActive ? 'text-white shadow-pink-200' : 'text-slate-700 shadow-pink-100'}`}
                   style={{ width: 56, height: 48 }}>{node.val}</div>
               ) : (
                 <div className={`w-16 h-12 flex rounded-sm border-2 overflow-hidden ${bg} ${border}`}>
-                  <div className="flex-1 flex items-center justify-center font-mono font-bold text-white bg-slate-800/50">{node.val}</div>
-                  <div className="w-5 border-l-2 border-slate-600 flex items-center justify-center bg-slate-700">
-                    <div className={`w-1.5 h-1.5 rounded-full ${isDel ? 'bg-red-400' : 'bg-slate-400'}`} /></div>
+                  <div className="flex-1 flex items-center justify-center font-mono font-bold text-slate-700 bg-white/80">{node.val}</div>
+                  <div className="w-5 border-l-2 border-pink-200 flex items-center justify-center bg-pink-50/80">
+                    <div className={`w-1.5 h-1.5 rounded-full ${isDel ? 'bg-rose-400' : 'bg-pink-300'}`} /></div>
                 </div>
               )}
 
@@ -633,8 +687,8 @@ export function MemoryCanvas({ currentState, isGraphEditMode = false, onGraphCan
         {pointers.filter((p) => p.from && p.to === 'NULL').map((ptr, idx) => {
           if (!ptr.from) return null;
           const coords = getLineCoords(ptr.from, 'NULL', nodes, ptr.label);
-          if (!coords) return null;
-          return (<div key={`null_${idx}`} className="absolute text-slate-500 font-mono font-bold transition-all duration-500 ease-in-out"
+            if (!coords) return null;
+            return (<div key={`null_${idx}`} className="absolute text-slate-400 font-mono font-bold tracking-widest transition-all duration-500 ease-in-out"
             style={{ left: coords.x2 + 5, top: coords.y2 - 10 }}>NULL</div>);
         })}
       </div>
@@ -642,9 +696,9 @@ export function MemoryCanvas({ currentState, isGraphEditMode = false, onGraphCan
       {/* ======== 固定覆盖层 ======== */}
 
       {/* Memory Scope */}
-      <div data-no-drag className="absolute top-6 right-6 bg-slate-800/80 backdrop-blur-md border border-slate-700 rounded-lg p-4 shadow-xl pointer-events-none z-30 max-w-[220px]">
-        <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">主要变量</h3>
-        <div className="space-y-1.5 text-sm font-mono text-slate-200">
+      <div data-no-drag className="absolute top-6 right-6 bg-white/85 backdrop-blur-xl border border-pink-200 rounded-2xl p-4 shadow-xl shadow-pink-100/80 pointer-events-none z-30 max-w-[240px]">
+        <h3 className="text-pink-500 text-xs font-bold uppercase tracking-wider mb-2">主要变量</h3>
+        <div className="space-y-1.5 text-sm font-mono text-slate-700">
           {Object.entries(variables).map(([name, value]) => (
             <div key={name} className="flex justify-between gap-4 min-w-0">
               <span className="shrink-0">{name}</span>
@@ -655,17 +709,17 @@ export function MemoryCanvas({ currentState, isGraphEditMode = false, onGraphCan
       </div>
 
       {/* 底部状态解析 */}
-      <div data-no-drag className={`absolute bottom-6 left-6 right-6 backdrop-blur shadow-xl border rounded-xl p-4 flex gap-4 items-start z-30 transition-colors duration-300 ${
-        isWarning ? 'bg-red-950/90 border-red-600 shadow-[0_0_20px_rgba(239,68,68,0.25)]' : 'bg-slate-800/95 border-slate-600'}`}>
+      <div data-no-drag className={`absolute bottom-6 left-6 right-6 backdrop-blur-xl shadow-xl border rounded-2xl p-4 flex gap-4 items-start z-30 transition-colors duration-300 ${
+        isWarning ? 'bg-rose-50/95 border-rose-300 shadow-[0_0_20px_rgba(251,113,133,0.2)]' : 'bg-white/90 border-pink-200 shadow-pink-100/80'}`}>
         <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 border ${
-          isWarning ? 'bg-red-500/20 text-red-400 border-red-500/50' : 'bg-blue-500/20 text-blue-400 border-blue-500/50'}`}>
+          isWarning ? 'bg-rose-100 text-rose-500 border-rose-200' : 'bg-pink-50 text-pink-500 border-pink-200'}`}>
           {isWarning ? <AlertTriangle size={16} /> : <RefreshCw size={16} />}
         </div>
         <div>
-          <h4 className={`text-sm font-bold mb-1 ${isWarning ? 'text-red-400' : 'text-white'}`}>
+          <h4 className={`text-sm font-bold mb-1 ${isWarning ? 'text-rose-600' : 'text-slate-800'}`}>
             {isWarning ? '⚠ 异常状态' : '执行状态解析'}
           </h4>
-          <p className={`text-sm leading-relaxed ${isWarning ? 'text-red-300 font-bold' : 'text-slate-300'}`}>{description}</p>
+          <p className={`text-sm leading-relaxed ${isWarning ? 'text-rose-600 font-bold' : 'text-slate-600'}`}>{description}</p>
         </div>
       </div>
     </div>

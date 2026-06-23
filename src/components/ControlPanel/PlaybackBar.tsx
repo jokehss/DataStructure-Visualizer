@@ -117,7 +117,7 @@ function TinyInput({ value, onChange, placeholder, className = '', onEnter }: {
     <input type="text" value={value} onChange={(e) => onChange(e.target.value)}
       onKeyDown={(e) => { if (e.key === 'Enter' && onEnter) onEnter(); }}
       placeholder={placeholder}
-      className={`border border-slate-300 rounded px-2 py-1 text-xs font-mono focus:ring-1 focus:ring-blue-500 focus:outline-none ${className}`} />
+      className={`bg-white border border-pink-200 text-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-mono shadow-sm placeholder-slate-300 focus:border-pink-400 focus:ring-1 focus:ring-pink-300 focus:outline-none transition-all ${className}`} />
   );
 }
 
@@ -125,18 +125,18 @@ function OpButton({ onClick, children, variant = 'default', className = '', titl
   onClick: () => void; children: React.ReactNode;
   variant?: 'default' | 'primary' | 'danger'; className?: string; title?: string;
 }) {
-  const base = 'px-3 py-1 text-xs font-medium rounded border transition-colors flex items-center gap-1.5 shrink-0';
+  const base = 'px-3 py-1.5 text-xs font-bold rounded-lg border transition-all flex items-center gap-1.5 shrink-0 active:scale-95';
   const v: Record<string, string> = {
-    default: 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-300',
-    primary: 'bg-blue-600 hover:bg-blue-700 text-white border-blue-600 shadow-sm',
-    danger: 'bg-white hover:bg-red-50 text-red-600 border-red-300 hover:border-red-400',
+    default: 'bg-white hover:bg-pink-50 text-slate-700 border-pink-200 shadow-sm',
+    primary: 'bg-gradient-to-r from-pink-500 to-rose-400 hover:from-pink-600 hover:to-rose-500 text-white border-pink-400 shadow-md shadow-pink-100',
+    danger: 'bg-white hover:bg-rose-50 text-rose-600 border-rose-200 hover:border-rose-300 shadow-sm',
   };
   return <button onClick={onClick} className={`${base} ${v[variant]} ${className}`} title={title}>{children}</button>;
 }
 
-function Sep() { return <div className="w-px h-8 bg-slate-200 shrink-0" />; }
+function Sep() { return <div className="w-px h-8 bg-pink-200 shrink-0" />; }
 function GroupLabel({ text }: { text: string }) {
-  return <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 shrink-0">{text}</span>;
+  return <span className="text-[11px] font-bold uppercase tracking-wider text-pink-500 shrink-0">{text}</span>;
 }
 
 // ---- 组件 ----
@@ -186,12 +186,32 @@ export function PlaybackBar({
   const isQuickSort = module === '快速排序';
   const isHeapSort = module === '堆排序';
   const isSortModule = isInsertionSort || isQuickSort || isHeapSort;
+  const isHuffman = module === '哈夫曼树';
   const inputPlaceholder = isTreeModule ? '前序: 1,2,#,#,3,#,#' : 'e.g. 10,20,30';
 
+  if (isHuffman) {
+    return (
+      <div className="h-full overflow-y-auto bg-white/85 backdrop-blur-xl border border-pink-200 rounded-3xl shadow-xl shadow-pink-100/70 z-20 custom-scrollbar">
+        <div className="h-full px-6 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-slate-700">哈夫曼树为理论阅读模块</p>
+            <p className="text-xs text-slate-500 mt-1">请在右侧文档区查看概念、构造步骤和编码特点，无需动画操作。</p>
+          </div>
+          <div className="hidden md:flex items-center gap-2 text-xs text-slate-400">
+              <span className="px-2 py-1 rounded bg-pink-50 text-pink-600 border border-pink-100">基本概念</span>
+              <span className="px-2 py-1 rounded bg-pink-50 text-pink-600 border border-pink-100">构造步骤</span>
+              <span className="px-2 py-1 rounded bg-pink-50 text-pink-600 border border-pink-100">示例</span>
+              <span className="px-2 py-1 rounded bg-pink-50 text-pink-600 border border-pink-100">编码特点</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="h-full overflow-y-auto bg-white border-t border-slate-200 shadow-[0_-4px_10px_rgba(0,0,0,0.02)] z-20 custom-scrollbar">
+    <div className="h-full overflow-y-auto bg-white/85 backdrop-blur-xl border border-pink-200 rounded-3xl shadow-xl shadow-pink-100/70 z-20 custom-scrollbar">
       {/* ---- 第 0 行：算法操作区 ---- */}
-      <div className="px-6 py-2.5 flex items-center gap-6 border-b border-slate-100 flex-wrap">
+      <div className="px-6 py-3 flex items-center gap-6 border-b border-pink-100 flex-wrap">
 
         {!isGraphModule && !isBinarySearch && !isSortModule && (
           <div className="flex items-center gap-2">
@@ -334,28 +354,28 @@ export function PlaybackBar({
 
       {/* ---- 第 1 行：播放控制台 ---- */}
       <div className="h-14 px-6 flex items-center justify-between">
-        <div className="w-48"><span className="text-[9px] text-slate-400 uppercase tracking-wide">动画播放控制</span></div>
+        <div className="w-48"><span className="text-[9px] text-pink-500 uppercase tracking-[0.18em] font-bold">动画播放控制</span></div>
 
         <div className="flex items-center gap-6 flex-1 max-w-xl">
           <div className="flex items-center gap-1.5">
-            <button onClick={onReset} disabled={totalFrames === 0} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors disabled:opacity-25 disabled:cursor-not-allowed" title="跳转到开头"><SkipBack size={18} /></button>
-            <button onClick={onStepBack} disabled={totalFrames === 0} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors disabled:opacity-25 disabled:cursor-not-allowed" title="后退一帧"><StepBack size={18} /></button>
-            <button onClick={onTogglePlay} disabled={totalFrames === 0} className="p-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-md transition-transform active:scale-95 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed" title={isPlaying ? '暂停' : '播放'}>
+            <button onClick={onReset} disabled={totalFrames === 0} className="p-1.5 text-slate-400 hover:text-pink-600 hover:bg-pink-50 rounded-full transition-colors disabled:opacity-25 disabled:cursor-not-allowed" title="跳转到开头"><SkipBack size={18} /></button>
+            <button onClick={onStepBack} disabled={totalFrames === 0} className="p-1.5 text-slate-400 hover:text-pink-600 hover:bg-pink-50 rounded-full transition-colors disabled:opacity-25 disabled:cursor-not-allowed" title="后退一帧"><StepBack size={18} /></button>
+            <button onClick={onTogglePlay} disabled={totalFrames === 0} className="p-2.5 bg-gradient-to-br from-pink-500 to-rose-400 hover:from-pink-600 hover:to-rose-500 text-white rounded-full shadow-md shadow-pink-200 transition-transform active:scale-95 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed" title={isPlaying ? '暂停' : '播放'}>
               {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-0.5" />}
             </button>
-            <button onClick={onStepForward} disabled={totalFrames === 0} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors disabled:opacity-25 disabled:cursor-not-allowed" title="前进一帧"><StepForward size={18} /></button>
-            <button onClick={onJumpToEnd} disabled={totalFrames === 0} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors disabled:opacity-25 disabled:cursor-not-allowed" title="跳转到末尾"><SkipForward size={18} /></button>
+            <button onClick={onStepForward} disabled={totalFrames === 0} className="p-1.5 text-slate-400 hover:text-pink-600 hover:bg-pink-50 rounded-full transition-colors disabled:opacity-25 disabled:cursor-not-allowed" title="前进一帧"><StepForward size={18} /></button>
+            <button onClick={onJumpToEnd} disabled={totalFrames === 0} className="p-1.5 text-slate-400 hover:text-pink-600 hover:bg-pink-50 rounded-full transition-colors disabled:opacity-25 disabled:cursor-not-allowed" title="跳转到末尾"><SkipForward size={18} /></button>
           </div>
 
           <div className="flex-1 flex items-center gap-2">
             <span className="text-xs font-mono font-medium text-slate-500 w-12 text-right">{totalFrames > 0 ? `${currentIndex + 1}/${totalFrames}` : '--'}</span>
-            <input type="range" min={0} max={maxSlider} value={currentIndex} onChange={(e) => onJumpTo(Number(e.target.value))} className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+            <input type="range" min={0} max={maxSlider} value={currentIndex} onChange={(e) => onJumpTo(Number(e.target.value))} className="flex-1 h-2 bg-pink-100 rounded-lg appearance-none cursor-pointer accent-pink-500" />
           </div>
         </div>
 
         <div className="flex items-center gap-2 w-48 justify-end">
           <span className="text-xs font-medium text-slate-400">速度</span>
-          <select value={playSpeed} onChange={(e) => onSpeedChange(Number(e.target.value) as PlaySpeed)} className="border border-slate-200 rounded px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer">
+          <select value={playSpeed} onChange={(e) => onSpeedChange(Number(e.target.value) as PlaySpeed)} className="border border-pink-200 rounded-lg px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-pink-300 cursor-pointer shadow-sm">
             {PLAY_SPEEDS.map((speed) => (<option key={speed} value={speed}>{PLAY_SPEED_LABELS[speed]}</option>))}
           </select>
         </div>
